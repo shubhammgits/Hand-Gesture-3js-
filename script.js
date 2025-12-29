@@ -253,6 +253,26 @@ function setupResponsiveUI() {
     syncInitialState();
 }
 
+function setupHelpPanel() {
+    const helpToggle = document.getElementById('helpToggle');
+    const helpPanel = document.getElementById('helpPanel');
+    if (!helpToggle || !helpPanel) return;
+
+    helpToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.body.classList.toggle('help-open');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (helpPanel.contains(e.target) || helpToggle.contains(e.target)) return;
+        document.body.classList.remove('help-open');
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') document.body.classList.remove('help-open');
+    });
+}
+
 function setupCustomShapeSelect() {
     const selectEl = document.getElementById('shapeSelect');
     if (!selectEl) return;
@@ -328,5 +348,6 @@ function setupCustomShapeSelect() {
 
 setupCustomShapeSelect();
 setupResponsiveUI();
+setupHelpPanel();
 
 initThree();
