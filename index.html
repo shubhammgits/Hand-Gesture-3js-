@@ -195,3 +195,59 @@
         particleSystem.geometry.attributes.position.needsUpdate = true;
         particleSystem.geometry.attributes.color.needsUpdate = true;
     }
+
+    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    
+    hands.onResults((res) => {
+        const status = document.getElementById('status');
+        if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
+            status.innerHTML = "SYSTEM: <span style='color:#00ff00'>STABLE</span>";
+            const lm = res.multiHandLandmarks[0];
+
+            // 1. PINCH TO EXPAND/ZOOM
+            const dist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+            targetScale = THREE.MathUtils.mapLinear(dist, 0.05, 0.4, 0.3, 6.0);
+
+            // 2. ROTATION
+            const dx = lm[9].x - lm[0].x;
+            const dy = lm[9].y - lm[0].y;
+            targetRotationZ = Math.atan2(dy, dx) + Math.PI / 2;
+        } else {
+            status.innerHTML = "SYSTEM: <span style='color:#ff0000'>SEARCHING...</span>";
+        }
+    });
+
+    const cameraUtils = new Camera(document.getElementById('webcam'), {
+        onFrame: async () => { await hands.send({image: document.getElementById('webcam')}); },
+        width: 640, height: 480
+    });
+    cameraUtils.start();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        currentScale += (targetScale - currentScale) * 0.1;
+        currentRotationZ += (targetRotationZ - currentRotationZ) * 0.1;
+
+        particleSystem.scale.set(currentScale, currentScale, currentScale);
+        particleSystem.rotation.z = currentRotationZ;
+        particleSystem.rotation.y += 0.003; // Slow spin
+
+        // Make background stars twinkle slightly
+        starField.rotation.y += 0.0005;
+
+        renderer.render(scene, camera);
+    }
+
+    document.getElementById('shapeSelect').onchange = (e) => updateShape(e.target.value);
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    initThree();
+</script>
+</body>
+</html>
