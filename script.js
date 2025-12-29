@@ -3,21 +3,70 @@ let targetScale = 1, currentScale = 1;
 let targetRotationZ = 0, currentRotationZ = 0;
 const PARTICLE_COUNT = 30000;
 
-const AUDIO_URL = 'YOUR_MUSIC_FILE_HERE.mp3';
+const AUDIO_URL = 'music1.mp3';
 const audio = new Audio(AUDIO_URL);
 audio.loop = true;
+audio.preload = 'auto';
 let musicPlaying = false;
+let needsUserUnmute = false;
 
-document.getElementById('musicToggle').onclick = () => {
-    if(!musicPlaying) {
-        audio.play();
-        document.getElementById('musicToggle').innerText = "PAUSE NEURAL AUDIO";
-    } else {
-        audio.pause();
-        document.getElementById('musicToggle').innerText = "PLAY NEURAL AUDIO";
+const musicToggleBtn = document.getElementById('musicToggle');
+
+function syncMusicButton() {
+    if (!musicToggleBtn) return;
+    musicToggleBtn.innerText = musicPlaying ? 'PAUSE AUDIO' : 'PLAY AUDIO';
+}
+
+async function startMusic() {
+    try {
+        await audio.play();
+        musicPlaying = true;
+        syncMusicButton();
+        return true;
+    } catch {
+        musicPlaying = false;
+        syncMusicButton();
+        return false;
     }
-    musicPlaying = !musicPlaying;
-};
+}
+
+function stopMusic() {
+    audio.pause();
+    musicPlaying = false;
+    syncMusicButton();
+}
+
+async function attemptAutoplay() {
+    audio.muted = true;
+    const ok = await startMusic();
+    if (ok) {
+        needsUserUnmute = true;
+        const unmuteOnce = () => {
+            if (!needsUserUnmute) return;
+            audio.muted = false;
+            needsUserUnmute = false;
+        };
+        document.addEventListener('pointerdown', unmuteOnce, { once: true });
+        document.addEventListener('keydown', unmuteOnce, { once: true });
+    } else {
+        audio.muted = false;
+    }
+}
+
+if (musicToggleBtn) {
+    musicToggleBtn.onclick = async () => {
+        if (!musicPlaying) {
+            audio.muted = false;
+            needsUserUnmute = false;
+            await startMusic();
+        } else {
+            stopMusic();
+        }
+    };
+}
+
+syncMusicButton();
+window.addEventListener('load', () => { attemptAutoplay(); });
 
 function initThree() {
     scene = new THREE.Scene();
@@ -25,6 +74,7 @@ function initThree() {
     camera.position.z = 5;
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('container').appendChild(renderer.domElement);
 
@@ -176,8 +226,32 @@ document.getElementById('shapeSelect').onchange = (e) => updateShape(e.target.va
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+function setupResponsiveUI() {
+    const toggleBtn = document.getElementById('uiToggle');
+    const uiPanel = document.getElementById('ui-panel');
+    if (!toggleBtn || !uiPanel) return;
+
+    const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+
+    const syncInitialState = () => {
+        if (isMobile()) document.body.classList.remove('ui-open');
+        else document.body.classList.add('ui-open');
+    };
+
+    toggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('ui-open');
+    });
+
+    window.addEventListener('resize', () => {
+        if (!isMobile()) document.body.classList.add('ui-open');
+    });
+
+    syncInitialState();
+}
 
 function setupCustomShapeSelect() {
     const selectEl = document.getElementById('shapeSelect');
@@ -209,6 +283,9 @@ function setupCustomShapeSelect() {
             opt.setAttribute('aria-selected', opt.dataset.value === value ? 'true' : 'false');
         }
         selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        if (window.matchMedia && window.matchMedia('(max-width: 640px)').matches) {
+            document.body.classList.remove('ui-open');
+        }
     };
 
     for (const option of selectEl.options) {
@@ -250,5 +327,6 @@ function setupCustomShapeSelect() {
 }
 
 setupCustomShapeSelect();
+setupResponsiveUI();
 
 initThree();

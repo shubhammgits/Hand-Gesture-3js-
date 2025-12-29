@@ -1,4 +1,5 @@
 body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+#container { position: fixed; inset: 0; }
 #ui-panel {
     position: absolute; top: 20px; left: 20px; z-index: 100;
     background: rgba(0, 16, 28, 0.55); backdrop-filter: blur(12px);
@@ -77,6 +78,184 @@ select:hover, button:hover { border-color: rgba(136, 207, 255, 0.55); }
 .custom-select-option[aria-selected="true"] {
     background: rgba(0, 150, 255, 0.16);
     border: 1px solid rgba(0, 150, 255, 0.25);
+}
+
+#uiToggle {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 120;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px);
+    display: none;
+}
+
+#uiToggle::before {
+    content: "";
+    display: block;
+    width: 18px;
+    height: 2px;
+    margin: 0 auto;
+    background: rgba(232, 244, 255, 0.9);
+    border-radius: 2px;
+    box-shadow: 0 -6px 0 rgba(232, 244, 255, 0.9), 0 6px 0 rgba(232, 244, 255, 0.9);
+}
+
+#social-links {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 120;
+    display: flex;
+    gap: 10px;
+}
+
+#help {
+    position: absolute;
+    top: 16px;
+    right: 132px;
+    z-index: 120;
+}
+
+#helpToggle {
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px);
+    color: rgba(232, 244, 255, 0.9);
+    display: grid;
+    place-items: center;
+    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+#helpToggle:hover {
+    transform: scale(1.12);
+    border-color: rgba(136, 207, 255, 0.45);
+    background: rgba(0, 0, 0, 0.45);
+}
+
+#helpToggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 150, 255, 0.18);
+}
+
+#helpPanel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    color: rgba(232, 244, 255, 0.92);
+    display: none;
+}
+
+body.help-open #helpPanel { display: block; }
+
+.help-title { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; color: #88cfff; }
+.help-text { font-size: 12px; line-height: 1.35; margin-bottom: 8px; }
+.help-text:last-child { margin-bottom: 0; }
+
+#social-links a {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px);
+    color: rgba(232, 244, 255, 0.9);
+    text-decoration: none;
+    transform: scale(1);
+    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+#social-links a:hover {
+    transform: scale(1.12);
+    border-color: rgba(136, 207, 255, 0.45);
+    background: rgba(0, 0, 0, 0.45);
+}
+
+#social-links a:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 150, 255, 0.18);
+}
+
+#social-links svg { display: block; width: 22px; height: 22px; }
+
+@media (max-width: 640px) {
+    #uiToggle { display: block; }
+
+    #social-links {
+        top: 16px;
+        right: 12px;
+        gap: 8px;
+    }
+
+    #social-links a {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+    }
+
+    #social-links svg { width: 18px; height: 18px; }
+
+    #help {
+        top: 16px;
+        right: 100px;
+    }
+
+    #helpToggle { width: 38px; height: 38px; }
+    #helpToggle svg { width: 18px; height: 18px; }
+
+    #helpPanel {
+        width: min(320px, calc(100vw - 24px));
+        right: -12px;
+    }
+
+    #ui-panel {
+        top: 68px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-height: 70vh;
+        overflow: auto;
+        padding: 16px;
+        display: none;
+    }
+
+    body.ui-open #ui-panel { display: block; }
+
+    #video-container {
+        bottom: 12px;
+        right: 12px;
+        width: 120px;
+        height: 90px;
+        border-width: 1px;
+    }
+}
+
+@media (max-width: 420px) {
+    #video-container { width: 104px; height: 78px; }
+
+    #social-links a { width: 34px; height: 34px; border-radius: 11px; }
+    #social-links svg { width: 16px; height: 16px; }
+    #help { right: 92px; }
+    #helpToggle { width: 34px; height: 34px; border-radius: 11px; }
+    #helpToggle svg { width: 16px; height: 16px; }
 }
 #video-container { position: absolute; bottom: 20px; right: 20px; width: 180px; height: 135px; border: 2px solid #0096ff; border-radius: 10px; overflow: hidden; transform: scaleX(-1); }
 video { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
