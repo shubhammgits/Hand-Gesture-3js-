@@ -56,24 +56,6 @@ Then open:
 - Install the “Live Server” extension
 - Right-click `index.html` → “Open with Live Server”
 
-## Deploy (GitHub Pages)
-
-This project can be deployed with GitHub Pages and still use webcam gestures (GitHub Pages serves over HTTPS).
-
-1. Push your latest code to the `main` branch.
-2. On GitHub: **Repo → Settings → Pages**
-3. **Source**: Deploy from a branch
-4. **Branch**: `main` / **Folder**: `/ (root)`
-5. Save and wait for GitHub to publish
-
-Your live URL format:
-
-- `https://<username>.github.io/<repo>/`
-
-For this repo:
-
-- https://shubhammgits.github.io/Hand-Gesture-3js-/
-
 ## Project Structure
 
 - `index.html` — main page
