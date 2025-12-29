@@ -51,3 +51,147 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+
+<script>
+    let scene, camera, renderer, particleSystem, starField;
+    let targetScale = 1, currentScale = 1;
+    let targetRotationZ = 0, currentRotationZ = 0;
+    const PARTICLE_COUNT = 30000;
+
+    // --- AUDIO SETUP ---
+    const AUDIO_URL = 'YOUR_MUSIC_FILE_HERE.mp3'; // <--- ADD YOUR MUSIC LINK HERE
+    const audio = new Audio(AUDIO_URL);
+    audio.loop = true;
+    let musicPlaying = false;
+
+    document.getElementById('musicToggle').onclick = () => {
+        if(!musicPlaying) {
+            audio.play();
+            document.getElementById('musicToggle').innerText = "PAUSE NEURAL AUDIO";
+        } else {
+            audio.pause();
+            document.getElementById('musicToggle').innerText = "PLAY NEURAL AUDIO";
+        }
+        musicPlaying = !musicPlaying;
+    };
+
+    function initThree() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.z = 5;
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Background Starfield
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(10000 * 3);
+        for(let i=0; i<30000; i++) starPos[i] = (Math.random() - 0.5) * 1000;
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true });
+        starField = new THREE.Points(starGeo, starMat);
+        scene.add(starField);
+
+        // Core Particle System
+        const canvas = document.createElement('canvas');
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(32,32,0, 32,32,32);
+        grad.addColorStop(0, 'white');
+        grad.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+        grad.addColorStop(1, 'black');
+        ctx.fillStyle = grad; ctx.fillRect(0,0,64,64);
+        const texture = new THREE.CanvasTexture(canvas);
+
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PARTICLE_COUNT * 3), 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(PARTICLE_COUNT * 3), 3));
+
+        const mat = new THREE.PointsMaterial({
+            size: 0.05, map: texture, transparent: true, 
+            blending: THREE.AdditiveBlending, depthWrite: false, vertexColors: true
+        });
+
+        particleSystem = new THREE.Points(geo, mat);
+        scene.add(particleSystem);
+
+        updateShape('sun');
+        animate();
+    }
+
+    function updateShape(type) {
+        const pos = particleSystem.geometry.attributes.position.array;
+        const cols = particleSystem.geometry.attributes.color.array;
+        const color = new THREE.Color();
+
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            let x, y, z;
+            const t = Math.random() * Math.PI * 2;
+            const u = Math.random() * 2 - 1;
+
+            if (type === 'sun') {
+                // Sun: Fiery Ball
+                const r = 1.8 + Math.random() * 0.2;
+                x = r * Math.sin(Math.acos(u)) * Math.cos(t);
+                y = r * Math.sin(Math.acos(u)) * Math.sin(t);
+                z = r * u;
+                color.setHSL(0.1 + Math.random() * 0.05, 1, 0.5); // Orange/Red
+            } 
+            else if (type === 'earth') {
+                // Earth: Blue and Green continents
+                const r = 1.5;
+                x = r * Math.sin(Math.acos(u)) * Math.cos(t);
+                y = r * Math.sin(Math.acos(u)) * Math.sin(t);
+                z = r * u;
+                
+                // Detailed expansion: On scale up, some particles form stick figures
+                if (i % 50 === 0) { // Simulate "People" points
+                    y += (Math.random() * 0.2); // Elongated
+                    color.set(0xffffff); // White bio-dots
+                } else {
+                    const isLand = Math.random() > 0.6;
+                    color.set(isLand ? 0x22ff44 : 0x0088ff); 
+                }
+            } 
+            else if (type === 'jupiter') {
+                // Jupiter: Large and Striped
+                const r = 2.2;
+                x = r * Math.sin(Math.acos(u)) * Math.cos(t);
+                y = r * Math.sin(Math.acos(u)) * Math.sin(t);
+                z = r * u;
+                // Color bands based on Y position
+                const band = Math.floor(y * 4) % 2;
+                color.set(band === 0 ? 0xd4a373 : 0xfaedcd);
+            }
+            else if (type === 'saturn') {
+                // Realistic Saturn
+                if (i < PARTICLE_COUNT * 0.5) { // The Planet
+                    const r = 1.4;
+                    x = r * Math.sin(Math.acos(u)) * Math.cos(t);
+                    y = r * Math.sin(Math.acos(u)) * Math.sin(t);
+                    z = r * u;
+                    color.set(0xe9c46a);
+                } else { // The Rings
+                    const r = 2.2 + Math.random() * 1.5;
+                    x = r * Math.cos(t);
+                    y = (Math.random() - 0.5) * 0.1; // Thinness
+                    z = r * Math.sin(t);
+                    color.set(0xa88d32);
+                }
+            } else { // Supernova (Fireworks)
+                const r = Math.random() * 5;
+                const phi = Math.acos(u);
+                x = r * Math.sin(phi) * Math.cos(t);
+                y = r * Math.sin(phi) * Math.sin(t);
+                z = r * Math.cos(phi);
+                color.setHSL(Math.random(), 1, 0.5);
+            }
+
+            pos[i*3] = x; pos[i*3+1] = y; pos[i*3+2] = z;
+            cols[i*3] = color.r; cols[i*3+1] = color.g; cols[i*3+2] = color.b;
+        }
+        particleSystem.geometry.attributes.position.needsUpdate = true;
+        particleSystem.geometry.attributes.color.needsUpdate = true;
+    }
