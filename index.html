@@ -21,3 +21,26 @@
         .music-btn { margin-top: 10px; background: #005588; border: none; font-size: 10px; }
     </style>
 </head>
+
+<body>
+
+<div id="ui-panel">
+    <h2 style="margin: 0 0 15px 0; font-weight: 300; letter-spacing: 2px;">~shubham</h2>
+    <div class="control-group">
+        <label>Planetary System</label>
+        <select id="shapeSelect">
+            <option value="sun">The Sun</option>
+            <option value="earth">Earth</option>
+            <option value="jupiter">Jupiter</option>
+            <option value="saturn">Saturn</option>
+            <option value="fireworks">Explosion</option>
+        </select>
+    </div>
+    
+    <div class="control-group">
+        <label>Audio Link</label>
+        <button id="musicToggle" class="music-btn">PLAY NEURAL AUDIO</button>
+    </div>
+
+    <div id="status">INITIALIZING...</div>
+</div>
