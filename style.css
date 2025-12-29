@@ -249,9 +249,11 @@ body.help-open #helpPanel { display: block; }
     #helpToggle svg { width: 18px; height: 18px; }
 
     #helpPanel {
-        width: min(320px, calc(100vw - 24px));
-        right: -12px;
-        max-height: 240px;
+        width: 240px;
+        max-width: calc(100vw - 24px);
+        right: 0;
+        padding: 10px;
+        max-height: 180px;
     }
 
     #ui-panel {
@@ -285,7 +287,7 @@ body.help-open #helpPanel { display: block; }
     #helpToggle { width: 34px; height: 34px; border-radius: 11px; }
     #helpToggle svg { width: 16px; height: 16px; }
 
-    #helpPanel { max-height: 210px; }
+    #helpPanel { width: 220px; max-height: 160px; }
 }
 
 @media (max-width: 360px) {
