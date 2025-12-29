@@ -275,6 +275,7 @@ function setupHelpPanel() {
 
 function setupCustomShapeSelect() {
     const selectEl = document.getElementById('shapeSelect');
+    const uiPanel = document.getElementById('ui-panel');
     if (!selectEl) return;
     if (selectEl.dataset.customized === '1') return;
     selectEl.dataset.customized = '1';
@@ -318,6 +319,7 @@ function setupCustomShapeSelect() {
         item.addEventListener('click', () => {
             setSelected(option.value);
             wrapper.classList.remove('open');
+            if (uiPanel) uiPanel.classList.remove('menu-open');
         });
         menu.appendChild(item);
     }
@@ -325,10 +327,14 @@ function setupCustomShapeSelect() {
     trigger.addEventListener('click', (e) => {
         e.preventDefault();
         wrapper.classList.toggle('open');
+        if (uiPanel) uiPanel.classList.toggle('menu-open', wrapper.classList.contains('open'));
     });
 
     document.addEventListener('click', (e) => {
-        if (!wrapper.contains(e.target)) wrapper.classList.remove('open');
+        if (!wrapper.contains(e.target)) {
+            wrapper.classList.remove('open');
+            if (uiPanel) uiPanel.classList.remove('menu-open');
+        }
     });
 
     selectEl.addEventListener('change', () => {

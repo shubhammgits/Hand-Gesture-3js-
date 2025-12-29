@@ -5,6 +5,18 @@ body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', s
     background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(14px);
     padding: 20px; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.14);
     color: white; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    isolation: isolate;
+}
+
+#ui-panel.menu-open::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(10px);
+    z-index: 5;
+    pointer-events: none;
 }
 .control-group { margin-bottom: 15px; }
 label { display: block; font-size: 10px; text-transform: uppercase; color: #88cfff; margin-bottom: 5px; }
@@ -28,7 +40,8 @@ select:hover, button:hover { border-color: rgba(136, 207, 255, 0.55); }
 
 #shapeSelect { display: none; }
 
-.custom-select { position: relative; width: 100%; }
+.custom-select { position: relative; width: 100%; z-index: 10; }
+.custom-select.open { z-index: 30; }
 .custom-select-trigger {
     width: 100%;
     text-align: left;
@@ -61,6 +74,7 @@ select:hover, button:hover { border-color: rgba(136, 207, 255, 0.55); }
     border: 1px solid rgba(255, 255, 255, 0.14);
     backdrop-filter: blur(14px);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    z-index: 40;
     display: none;
 }
 .custom-select.open .custom-select-menu { display: block; }
