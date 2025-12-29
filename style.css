@@ -2,9 +2,9 @@ body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', s
 #container { position: fixed; inset: 0; }
 #ui-panel {
     position: absolute; top: 20px; left: 20px; z-index: 100;
-    background: rgba(0, 16, 28, 0.55); backdrop-filter: blur(12px);
-    padding: 20px; border-radius: 15px; border: 1px solid rgba(0, 150, 255, 0.3);
-    color: white; box-shadow: 0 0 20px rgba(0, 150, 255, 0.2);
+    background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(14px);
+    padding: 20px; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.14);
+    color: white; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
 }
 .control-group { margin-bottom: 15px; }
 label { display: block; font-size: 10px; text-transform: uppercase; color: #88cfff; margin-bottom: 5px; }
@@ -260,4 +260,10 @@ body.help-open #helpPanel { display: block; }
 #video-container { position: absolute; bottom: 20px; right: 20px; width: 180px; height: 135px; border: 2px solid #0096ff; border-radius: 10px; overflow: hidden; transform: scaleX(-1); }
 video { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
 #status { font-size: 11px; margin-top: 10px; font-family: monospace; }
-.music-btn { margin-top: 10px; background: #005588; border: none; font-size: 10px; }
+.music-btn {
+    margin-top: 10px;
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px);
+}

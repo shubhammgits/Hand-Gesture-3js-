@@ -3,7 +3,7 @@ let targetScale = 1, currentScale = 1;
 let targetRotationZ = 0, currentRotationZ = 0;
 const PARTICLE_COUNT = 30000;
 
-const AUDIO_URL = 'music1.mp3';
+const AUDIO_URL = 'music.mp3';
 const audio = new Audio(AUDIO_URL);
 audio.loop = true;
 audio.preload = 'auto';
