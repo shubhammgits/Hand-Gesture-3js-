@@ -175,8 +175,18 @@ select:hover, button:hover { border-color: rgba(136, 207, 255, 0.55); }
     color: rgba(232, 244, 255, 0.92);
     display: none;
     max-height: 60vh;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-width: thin;
+}
+
+#helpPanel::-webkit-scrollbar { width: 8px; }
+#helpPanel::-webkit-scrollbar-track { background: transparent; }
+#helpPanel::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
 }
 
 body.help-open #helpPanel { display: block; }
@@ -241,7 +251,7 @@ body.help-open #helpPanel { display: block; }
     #helpPanel {
         width: min(320px, calc(100vw - 24px));
         right: -12px;
-        max-height: 55vh;
+        max-height: 240px;
     }
 
     #ui-panel {
@@ -274,6 +284,17 @@ body.help-open #helpPanel { display: block; }
     #help { right: 92px; }
     #helpToggle { width: 34px; height: 34px; border-radius: 11px; }
     #helpToggle svg { width: 16px; height: 16px; }
+
+    #helpPanel { max-height: 210px; }
+}
+
+@media (max-width: 360px) {
+    #social-links a { width: 32px; height: 32px; border-radius: 10px; }
+    #social-links svg { width: 15px; height: 15px; }
+
+    #help { right: 86px; }
+    #helpToggle { width: 32px; height: 32px; border-radius: 10px; }
+    #helpToggle svg { width: 15px; height: 15px; }
 }
 #video-container { position: absolute; bottom: 20px; right: 20px; width: 180px; height: 135px; border: 2px solid #0096ff; border-radius: 10px; overflow: hidden; transform: scaleX(-1); }
 video { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
