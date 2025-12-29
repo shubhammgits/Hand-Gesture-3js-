@@ -179,4 +179,76 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+function setupCustomShapeSelect() {
+    const selectEl = document.getElementById('shapeSelect');
+    if (!selectEl) return;
+    if (selectEl.dataset.customized === '1') return;
+    selectEl.dataset.customized = '1';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'custom-select';
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'custom-select-trigger';
+
+    const menu = document.createElement('div');
+    menu.className = 'custom-select-menu';
+    menu.setAttribute('role', 'listbox');
+
+    const updateTriggerText = () => {
+        const selectedOption = selectEl.options[selectEl.selectedIndex];
+        trigger.textContent = selectedOption ? selectedOption.textContent : '';
+    };
+
+    const setSelected = (value) => {
+        selectEl.value = value;
+        updateTriggerText();
+        const opts = menu.querySelectorAll('.custom-select-option');
+        for (const opt of opts) {
+            opt.setAttribute('aria-selected', opt.dataset.value === value ? 'true' : 'false');
+        }
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    for (const option of selectEl.options) {
+        const item = document.createElement('div');
+        item.className = 'custom-select-option';
+        item.textContent = option.textContent;
+        item.dataset.value = option.value;
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', option.selected ? 'true' : 'false');
+        item.addEventListener('click', () => {
+            setSelected(option.value);
+            wrapper.classList.remove('open');
+        });
+        menu.appendChild(item);
+    }
+
+    trigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        wrapper.classList.toggle('open');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target)) wrapper.classList.remove('open');
+    });
+
+    selectEl.addEventListener('change', () => {
+        updateTriggerText();
+        const opts = menu.querySelectorAll('.custom-select-option');
+        for (const opt of opts) {
+            opt.setAttribute('aria-selected', opt.dataset.value === selectEl.value ? 'true' : 'false');
+        }
+    });
+
+    updateTriggerText();
+
+    selectEl.insertAdjacentElement('afterend', wrapper);
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(menu);
+}
+
+setupCustomShapeSelect();
+
 initThree();

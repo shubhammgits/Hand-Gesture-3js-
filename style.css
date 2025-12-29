@@ -1,13 +1,83 @@
 body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
 #ui-panel {
     position: absolute; top: 20px; left: 20px; z-index: 100;
-    background: rgba(0, 20, 40, 0.7); backdrop-filter: blur(10px);
+    background: rgba(0, 16, 28, 0.55); backdrop-filter: blur(12px);
     padding: 20px; border-radius: 15px; border: 1px solid rgba(0, 150, 255, 0.3);
     color: white; box-shadow: 0 0 20px rgba(0, 150, 255, 0.2);
 }
 .control-group { margin-bottom: 15px; }
 label { display: block; font-size: 10px; text-transform: uppercase; color: #88cfff; margin-bottom: 5px; }
-select, button { background: rgba(0, 150, 255, 0.2); border: 1px solid #0096ff; color: white; padding: 8px; width: 100%; border-radius: 5px; cursor: pointer; }
+select, button {
+    background: rgba(0, 12, 22, 0.55);
+    border: 1px solid rgba(136, 207, 255, 0.35);
+    color: white;
+    padding: 8px;
+    width: 100%;
+    border-radius: 8px;
+    cursor: pointer;
+}
+select { color-scheme: dark; }
+select option { background: #061524; color: #e8f4ff; }
+select:focus, button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 150, 255, 0.18);
+    border-color: rgba(136, 207, 255, 0.55);
+}
+select:hover, button:hover { border-color: rgba(136, 207, 255, 0.55); }
+
+#shapeSelect { display: none; }
+
+.custom-select { position: relative; width: 100%; }
+.custom-select-trigger {
+    width: 100%;
+    text-align: left;
+    padding-right: 36px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px);
+}
+.custom-select-trigger::after {
+    content: "";
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 7px solid rgba(232, 244, 255, 0.85);
+    transform: translateY(-30%);
+    pointer-events: none;
+}
+.custom-select-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 8px);
+    padding: 6px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    display: none;
+}
+.custom-select.open .custom-select-menu { display: block; }
+.custom-select-option {
+    padding: 10px 10px;
+    border-radius: 10px;
+    color: rgba(232, 244, 255, 0.92);
+    font-size: 14px;
+    line-height: 1.1;
+    user-select: none;
+}
+.custom-select-option:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+.custom-select-option[aria-selected="true"] {
+    background: rgba(0, 150, 255, 0.16);
+    border: 1px solid rgba(0, 150, 255, 0.25);
+}
 #video-container { position: absolute; bottom: 20px; right: 20px; width: 180px; height: 135px; border: 2px solid #0096ff; border-radius: 10px; overflow: hidden; transform: scaleX(-1); }
 video { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
 #status { font-size: 11px; margin-top: 10px; font-family: monospace; }
