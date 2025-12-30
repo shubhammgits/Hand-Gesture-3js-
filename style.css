@@ -30,7 +30,7 @@ body.intro-open #uiToggle {
     max-height: min(70vh, 560px);
     padding: 18px;
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(0, 0, 0, 0.9);
     background: rgba(0, 0, 0, 0.72);
     backdrop-filter: blur(14px);
     color: rgba(232, 244, 255, 0.94);
@@ -38,22 +38,7 @@ body.intro-open #uiToggle {
 }
 
 #introCard::before {
-    content: "";
-    position: absolute;
-    inset: -1px;
-    border-radius: 17px;
-    padding: 1px;
-    background: linear-gradient(135deg,
-        rgba(0, 150, 255, 0.85),
-        rgba(255, 255, 255, 0.55),
-        rgba(0, 150, 255, 0.25),
-        rgba(255, 255, 255, 0.35),
-        rgba(0, 150, 255, 0.7)
-    );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+    content: none;
 }
 
 #introClose {
