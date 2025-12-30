@@ -28,8 +28,6 @@ body.intro-open #uiToggle {
 #introCard {
     width: min(560px, calc(100vw - 32px));
     max-height: min(70vh, 560px);
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
     padding: 18px;
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -401,6 +399,8 @@ body.help-open #helpPanel { display: block; }
         width: min(340px, calc(100vw - 24px));
         max-height: 62vh;
         padding: 14px;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     #introClose { width: 34px; height: 34px; border-radius: 11px; }
