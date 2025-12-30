@@ -1,5 +1,114 @@
 body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
 #container { position: fixed; inset: 0; }
+
+#introOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+}
+
+body.intro-open #introOverlay { display: flex; }
+
+body.intro-open #container,
+body.intro-open #ui-panel,
+body.intro-open #video-container,
+body.intro-open #social-links,
+body.intro-open #help,
+body.intro-open #uiToggle {
+    filter: blur(10px);
+    pointer-events: none;
+}
+
+#introCard {
+    width: min(560px, calc(100vw - 32px));
+    max-height: min(70vh, 560px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px solid transparent;
+    background:
+        linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)) padding-box,
+        linear-gradient(135deg,
+            rgba(0, 150, 255, 0.85),
+            rgba(255, 255, 255, 0.55),
+            rgba(0, 150, 255, 0.25),
+            rgba(255, 255, 255, 0.35),
+            rgba(0, 150, 255, 0.7)
+        ) border-box;
+    backdrop-filter: blur(14px);
+    color: rgba(232, 244, 255, 0.94);
+    position: relative;
+}
+
+#introClose {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: rgba(232, 244, 255, 0.9);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.intro-title {
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    color: #88cfff;
+}
+
+.intro-text {
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 10px;
+}
+
+#introFooter {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 12px 0 10px;
+}
+
+.icon-btn {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px);
+    color: rgba(232, 244, 255, 0.9);
+    text-decoration: none;
+    transform: scale(1);
+    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.icon-btn:hover {
+    transform: scale(1.12);
+    border-color: rgba(136, 207, 255, 0.45);
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.icon-btn svg { width: 20px; height: 20px; display: block; }
+
+#introContinue {
+    width: 100%;
+}
 #ui-panel {
     position: absolute; top: 20px; left: 20px; z-index: 100;
     background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(14px);
@@ -276,6 +385,16 @@ body.help-open #helpPanel { display: block; }
         height: 90px;
         border-width: 1px;
     }
+
+    #introCard {
+        width: min(340px, calc(100vw - 24px));
+        max-height: 62vh;
+        padding: 14px;
+    }
+
+    #introClose { width: 34px; height: 34px; border-radius: 11px; }
+    .icon-btn { width: 38px; height: 38px; }
+    .icon-btn svg { width: 18px; height: 18px; }
 }
 
 @media (max-width: 420px) {
