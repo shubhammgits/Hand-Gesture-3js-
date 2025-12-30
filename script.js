@@ -20,6 +20,9 @@ let infallInX;
 let infallInY;
 let infallInZ;
 let infallOutZ;
+let streamT;
+let streamOff1;
+let streamOff2;
 
 const INNER_STAR_COUNT = 220;
 let innerStarX;
@@ -289,6 +292,9 @@ function createBlackHoleAssets() {
     infallInY = new Float32Array(INFALL_COUNT);
     infallInZ = new Float32Array(INFALL_COUNT);
     infallOutZ = new Float32Array(INFALL_COUNT);
+    streamT = new Float32Array(INFALL_COUNT);
+    streamOff1 = new Float32Array(INFALL_COUNT);
+    streamOff2 = new Float32Array(INFALL_COUNT);
 
     const infallSpriteCanvas = document.createElement('canvas');
     infallSpriteCanvas.width = 64;
@@ -420,16 +426,18 @@ function resetRockBigParticle(i, init = false) {
 }
 
 function resetInfallParticle(i, init = false) {
-    infallA[i] = Math.random() * Math.PI * 2;
-    infallR[i] = 3.3 + Math.random() * 3.0;
-    const ray = Math.random() < 0.35;
-    infallY[i] = ray ? (Math.random() - 0.5) * 0.25 : (Math.random() - 0.5) * 0.08;
-    infallSpeed[i] = (ray ? 0.035 : 0.02) + Math.random() * 0.02;
+    infallA[i] = 0;
+    infallR[i] = 0;
+    infallY[i] = 0;
+    infallSpeed[i] = 0.02 + Math.random() * 0.03;
     infallPhase[i] = 0;
     infallInX[i] = 0;
     infallInY[i] = 0;
     infallInZ[i] = 0;
     infallOutZ[i] = 0;
+    streamT[i] = Math.random();
+    streamOff1[i] = (Math.random() - 0.5) * 0.12;
+    streamOff2[i] = (Math.random() - 0.5) * 0.08;
 
     if (!init) {
         const pos = infallSystem.geometry.attributes.position.array;
@@ -652,26 +660,57 @@ function updateBlackHoleVisuals() {
     const insideRadius = inner * 0.86;
     const outsideAlpha = THREE.MathUtils.clamp(1.0 - (zoom - 0.10) / 0.12, 0, 1);
 
+    const sx = -6.6;
+    const sy = 0.15;
+    const sz = 0.22;
+    const ex = inner * 0.98;
+    const ey = -0.06;
+    const ez = 0.06;
+
+    const dx = ex - sx;
+    const dy = ey - sy;
+    const dz = ez - sz;
+    const len = Math.hypot(dx, dy, dz) || 1;
+    const nx = dx / len;
+    const ny = dy / len;
+    const nz = dz / len;
+
+    const pxLen = Math.hypot(-ny, nx) || 1;
+    const px = (-ny) / pxLen;
+    const py = (nx) / pxLen;
+    const pz = 0;
+
     for (let i = 0; i < INFALL_COUNT; i++) {
         if (infallPhase[i] === 0) {
-            const orbitTarget = inner + 1.55 + (infallSpeed[i] - 0.02) * 6.0;
-            infallR[i] += (orbitTarget - infallR[i]) * 0.02;
-            infallA[i] += (0.028 / (infallR[i] + 0.25)) * speedBoost;
+            streamT[i] -= infallSpeed[i] * (0.010 + 0.03 * speedBoost);
+            if (streamT[i] <= 0) {
+                resetInfallParticle(i);
+            }
 
-            const r = infallR[i];
-            const a = infallA[i];
-            const y = infallY[i] * 0.55;
+            const t = THREE.MathUtils.clamp(streamT[i], 0, 1);
+            const along = (1.0 - t) * len;
 
-            const x0 = r * Math.cos(a);
-            const z0 = r * Math.sin(a);
+            let x0 = sx + nx * along;
+            let y0 = sy + ny * along;
+            let z0 = sz + nz * along;
 
-            if (allowInside && outsideAlpha < 0.9 && Math.random() < (0.003 + (1.0 - outsideAlpha) * 0.02)) {
+            const widen = 0.35 + t * 0.85;
+            x0 += px * streamOff1[i] * widen;
+            y0 += py * streamOff1[i] * widen;
+            z0 += streamOff2[i] * widen;
+
+            const near = along / len;
+            const curve = (1.0 - near);
+            y0 += Math.sin((along * 0.55) + bhSpin * 0.7) * 0.02 * curve;
+
+            const distXY = Math.hypot(x0, y0) || 1;
+            if (allowInside && distXY < (inner + 0.22)) {
                 infallPhase[i] = 1;
                 let ix = x0;
-                let iy = y;
-                const len = Math.hypot(ix, iy) || 1;
-                if (len > insideRadius) {
-                    const s = insideRadius / len;
+                let iy = y0;
+                const l2 = Math.hypot(ix, iy) || 1;
+                if (l2 > insideRadius) {
+                    const s = insideRadius / l2;
                     ix *= s;
                     iy *= s;
                 }
@@ -682,13 +721,12 @@ function updateBlackHoleVisuals() {
 
             if (infallPhase[i] === 0) {
                 pos[i * 3] = x0;
-                pos[i * 3 + 1] = y;
+                pos[i * 3 + 1] = y0;
                 pos[i * 3 + 2] = z0;
 
-                const frontOnly = z0 >= 0 ? 1 : 0;
-                const heat = THREE.MathUtils.clamp(1.0 - (r - inner) / 3.0, 0, 1);
-                c.setHSL(0.09, 1.0, 0.35 + heat * 0.55);
-                const boost = (0.35 + zoom * 0.65) * outsideAlpha * frontOnly;
+                const heat = THREE.MathUtils.clamp(1.0 - distXY / 6.5, 0, 1);
+                c.setHSL(0.10, 1.0, 0.35 + heat * 0.45);
+                const boost = (0.25 + zoom * 0.55) * outsideAlpha;
                 cols[i * 3] = c.r * boost;
                 cols[i * 3 + 1] = c.g * boost;
                 cols[i * 3 + 2] = c.b * boost;
