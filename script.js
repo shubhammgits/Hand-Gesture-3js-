@@ -19,6 +19,7 @@ let infallPhase;
 let infallInX;
 let infallInY;
 let infallInZ;
+let infallOutZ;
 
 const INNER_STAR_COUNT = 220;
 let innerStarX;
@@ -287,6 +288,7 @@ function createBlackHoleAssets() {
     infallInX = new Float32Array(INFALL_COUNT);
     infallInY = new Float32Array(INFALL_COUNT);
     infallInZ = new Float32Array(INFALL_COUNT);
+    infallOutZ = new Float32Array(INFALL_COUNT);
 
     const infallSpriteCanvas = document.createElement('canvas');
     infallSpriteCanvas.width = 64;
@@ -427,6 +429,7 @@ function resetInfallParticle(i, init = false) {
     infallInX[i] = 0;
     infallInY[i] = 0;
     infallInZ[i] = 0;
+    infallOutZ[i] = 0;
 
     if (!init) {
         const pos = infallSystem.geometry.attributes.position.array;
@@ -647,38 +650,45 @@ function updateBlackHoleVisuals() {
 
     const allowInside = zoom > 0.12;
     const insideRadius = inner * 0.86;
-    const outsideFade = THREE.MathUtils.clamp(1.0 - (zoom - 0.18) / 0.55, 0, 1);
+    const outsideAlpha = THREE.MathUtils.clamp(1.0 - (zoom - 0.10) / 0.12, 0, 1);
 
     for (let i = 0; i < INFALL_COUNT; i++) {
         if (infallPhase[i] === 0) {
-            infallR[i] -= infallSpeed[i] * speedBoost;
-            infallA[i] += (0.02 / (infallR[i] + 0.25)) * speedBoost;
+            const orbitTarget = inner + 1.55 + (infallSpeed[i] - 0.02) * 6.0;
+            infallR[i] += (orbitTarget - infallR[i]) * 0.02;
+            infallA[i] += (0.028 / (infallR[i] + 0.25)) * speedBoost;
 
             const r = infallR[i];
             const a = infallA[i];
-            const y = infallY[i];
+            const y = infallY[i] * 0.55;
 
-            if (allowInside && r < inner + 0.34) {
+            const x0 = r * Math.cos(a);
+            const z0 = r * Math.sin(a);
+
+            if (allowInside && outsideAlpha < 0.9 && Math.random() < (0.003 + (1.0 - outsideAlpha) * 0.02)) {
                 infallPhase[i] = 1;
-                const aa = Math.random() * Math.PI * 2;
-                const rr = Math.sqrt(Math.random()) * insideRadius;
-                infallInX[i] = rr * Math.cos(aa);
-                infallInY[i] = rr * Math.sin(aa);
+                let ix = x0;
+                let iy = y;
+                const len = Math.hypot(ix, iy) || 1;
+                if (len > insideRadius) {
+                    const s = insideRadius / len;
+                    ix *= s;
+                    iy *= s;
+                }
+                infallInX[i] = ix;
+                infallInY[i] = iy;
                 infallInZ[i] = 0.65 + Math.random() * 0.45;
             }
 
             if (infallPhase[i] === 0) {
-                if (infallR[i] < inner) {
-                    resetInfallParticle(i);
-                }
-
-                pos[i * 3] = r * Math.cos(a);
+                pos[i * 3] = x0;
                 pos[i * 3 + 1] = y;
-                pos[i * 3 + 2] = r * Math.sin(a);
+                pos[i * 3 + 2] = z0;
 
-                const heat = THREE.MathUtils.clamp(1.0 - (r - inner) / 5.5, 0, 1);
+                const frontOnly = z0 >= 0 ? 1 : 0;
+                const heat = THREE.MathUtils.clamp(1.0 - (r - inner) / 3.0, 0, 1);
                 c.setHSL(0.09, 1.0, 0.35 + heat * 0.55);
-                const boost = (0.35 + zoom * 0.65) * (0.15 + outsideFade * 0.85);
+                const boost = (0.35 + zoom * 0.65) * outsideAlpha * frontOnly;
                 cols[i * 3] = c.r * boost;
                 cols[i * 3 + 1] = c.g * boost;
                 cols[i * 3 + 2] = c.b * boost;
@@ -724,7 +734,8 @@ function updateBlackHoleVisuals() {
     }
 
     if (rockSystem && rockBigSystem) {
-        const rockOpacity = THREE.MathUtils.clamp((zoom - 0.06) / 0.35, 0, 1);
+        const outsideAlpha = THREE.MathUtils.clamp(1.0 - (zoom - 0.10) / 0.12, 0, 1);
+        const rockOpacity = THREE.MathUtils.clamp((zoom - 0.06) / 0.12, 0, 1) * outsideAlpha;
         rockSystem.material.opacity = rockOpacity * 0.9;
         rockBigSystem.material.opacity = rockOpacity * 0.75;
         rockSystem.material.size = 0.055 + zoom * 0.03;
