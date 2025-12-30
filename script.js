@@ -2,6 +2,8 @@ let scene, camera, renderer, particleSystem;
 let bgMesh;
 let blackHoleGroup, blackHoleCore, blackHoleDisk, blackHoleHalo;
 let infallSystem;
+let bhStencilMask;
+let innerStarSystem;
 let rockSystem;
 let rockBigSystem;
 let activePreset = 'sun';
@@ -13,6 +15,16 @@ let infallR;
 let infallA;
 let infallY;
 let infallSpeed;
+let infallPhase;
+let infallInX;
+let infallInY;
+let infallInZ;
+
+const INNER_STAR_COUNT = 220;
+let innerStarX;
+let innerStarY;
+let innerStarZ;
+let innerStarSpeed;
 
 const ROCK_COUNT = 900;
 const ROCK_BIG_COUNT = 140;
@@ -200,34 +212,96 @@ function createBlackHoleAssets() {
     blackHoleGroup.visible = false;
     scene.add(blackHoleGroup);
 
+    const stencilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    stencilMat.colorWrite = false;
+    stencilMat.depthWrite = false;
+    stencilMat.depthTest = false;
+    stencilMat.stencilWrite = true;
+    stencilMat.stencilRef = 1;
+    stencilMat.stencilFunc = THREE.AlwaysStencilFunc;
+    stencilMat.stencilFail = THREE.KeepStencilOp;
+    stencilMat.stencilZFail = THREE.KeepStencilOp;
+    stencilMat.stencilZPass = THREE.ReplaceStencilOp;
+
+    bhStencilMask = new THREE.Mesh(new THREE.CircleGeometry(0.915, 96), stencilMat);
+    bhStencilMask.visible = false;
+    bhStencilMask.renderOrder = 1;
+    scene.add(bhStencilMask);
+
+    innerStarX = new Float32Array(INNER_STAR_COUNT);
+    innerStarY = new Float32Array(INNER_STAR_COUNT);
+    innerStarZ = new Float32Array(INNER_STAR_COUNT);
+    innerStarSpeed = new Float32Array(INNER_STAR_COUNT);
+
+    const sGeo = new THREE.BufferGeometry();
+    sGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(INNER_STAR_COUNT * 3), 3));
+    const sMat = new THREE.PointsMaterial({
+        size: 0.018,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        depthTest: false
+    });
+    sMat.stencilWrite = true;
+    sMat.stencilRef = 1;
+    sMat.stencilFunc = THREE.EqualStencilFunc;
+    sMat.stencilFail = THREE.KeepStencilOp;
+    sMat.stencilZFail = THREE.KeepStencilOp;
+    sMat.stencilZPass = THREE.KeepStencilOp;
+
+    innerStarSystem = new THREE.Points(sGeo, sMat);
+    innerStarSystem.visible = false;
+    innerStarSystem.renderOrder = 9;
+    scene.add(innerStarSystem);
+
     blackHoleCore = new THREE.Mesh(
-        new THREE.CircleGeometry(0.92, 64),
-        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 1, depthWrite: false, depthTest: false })
+        new THREE.CircleGeometry(0.92, 96),
+        new THREE.MeshBasicMaterial({ color: 0x000000, depthWrite: true, depthTest: true })
     );
-    blackHoleCore.renderOrder = 5;
+    blackHoleCore.renderOrder = 4;
     blackHoleGroup.add(blackHoleCore);
 
     const haloTex = createGlowTexture('rgba(255,255,255,0.75)', 'rgba(255,210,160,0.12)');
     blackHoleHalo = new THREE.Mesh(
         new THREE.RingGeometry(0.92, 1.32, 96),
-        new THREE.MeshBasicMaterial({ map: haloTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+        new THREE.MeshBasicMaterial({ map: haloTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
     );
-    blackHoleHalo.renderOrder = 8;
+    blackHoleHalo.renderOrder = 7;
     blackHoleGroup.add(blackHoleHalo);
 
     const diskTex = createGlowTexture('rgba(255,210,150,0.85)', 'rgba(255,140,60,0.08)');
     blackHoleDisk = new THREE.Mesh(
         new THREE.RingGeometry(1.05, 2.85, 128, 1),
-        new THREE.MeshBasicMaterial({ map: diskTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+        new THREE.MeshBasicMaterial({ map: diskTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
     );
     blackHoleDisk.rotation.x = 1.12;
-    blackHoleDisk.renderOrder = 7;
+    blackHoleDisk.renderOrder = 6;
     blackHoleGroup.add(blackHoleDisk);
 
     infallR = new Float32Array(INFALL_COUNT);
     infallA = new Float32Array(INFALL_COUNT);
     infallY = new Float32Array(INFALL_COUNT);
     infallSpeed = new Float32Array(INFALL_COUNT);
+    infallPhase = new Uint8Array(INFALL_COUNT);
+    infallInX = new Float32Array(INFALL_COUNT);
+    infallInY = new Float32Array(INFALL_COUNT);
+    infallInZ = new Float32Array(INFALL_COUNT);
+
+    const infallSpriteCanvas = document.createElement('canvas');
+    infallSpriteCanvas.width = 64;
+    infallSpriteCanvas.height = 64;
+    const infallSpriteCtx = infallSpriteCanvas.getContext('2d');
+    const g = infallSpriteCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0.0, 'rgba(255, 220, 160, 1)');
+    g.addColorStop(0.25, 'rgba(255, 200, 120, 0.85)');
+    g.addColorStop(0.55, 'rgba(255, 170, 70, 0.22)');
+    g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    infallSpriteCtx.fillStyle = g;
+    infallSpriteCtx.fillRect(0, 0, 64, 64);
+    const infallSpriteTex = new THREE.CanvasTexture(infallSpriteCanvas);
+    infallSpriteTex.colorSpace = THREE.SRGBColorSpace;
+    infallSpriteTex.needsUpdate = true;
 
     const iGeo = new THREE.BufferGeometry();
     iGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(INFALL_COUNT * 3), 3));
@@ -235,9 +309,11 @@ function createBlackHoleAssets() {
 
     const iMat = new THREE.PointsMaterial({
         size: 0.03,
+        map: infallSpriteTex,
         transparent: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        alphaTest: 0.01,
         vertexColors: true
     });
     infallSystem = new THREE.Points(iGeo, iMat);
@@ -247,6 +323,10 @@ function createBlackHoleAssets() {
 
     for (let i = 0; i < INFALL_COUNT; i++) {
         resetInfallParticle(i, true);
+    }
+
+    for (let i = 0; i < INNER_STAR_COUNT; i++) {
+        resetInnerStar(i, true);
     }
 
     rockR = new Float32Array(ROCK_COUNT);
@@ -293,6 +373,22 @@ function createBlackHoleAssets() {
     for (let i = 0; i < ROCK_BIG_COUNT; i++) resetRockBigParticle(i, true);
 }
 
+function resetInnerStar(i, init = false) {
+    const a = Math.random() * Math.PI * 2;
+    const rr = Math.sqrt(Math.random()) * 0.85;
+    innerStarX[i] = rr * Math.cos(a);
+    innerStarY[i] = rr * Math.sin(a);
+    innerStarZ[i] = 0.55 + Math.random() * 0.45;
+    innerStarSpeed[i] = 0.02 + Math.random() * 0.03;
+
+    if (!init) {
+        const pos = innerStarSystem.geometry.attributes.position.array;
+        pos[i * 3] = innerStarX[i];
+        pos[i * 3 + 1] = innerStarY[i];
+        pos[i * 3 + 2] = innerStarZ[i];
+    }
+}
+
 function resetRockParticle(i, init = false) {
     rockA[i] = Math.random() * Math.PI * 2;
     rockR[i] = 3.8 + Math.random() * 4.3;
@@ -327,6 +423,10 @@ function resetInfallParticle(i, init = false) {
     const ray = Math.random() < 0.35;
     infallY[i] = ray ? (Math.random() - 0.5) * 0.25 : (Math.random() - 0.5) * 0.08;
     infallSpeed[i] = (ray ? 0.035 : 0.02) + Math.random() * 0.02;
+    infallPhase[i] = 0;
+    infallInX[i] = 0;
+    infallInY[i] = 0;
+    infallInZ[i] = 0;
 
     if (!init) {
         const pos = infallSystem.geometry.attributes.position.array;
@@ -343,6 +443,8 @@ function updateShape(type) {
     if (bgMesh) bgMesh.visible = false;
     if (blackHoleGroup) blackHoleGroup.visible = isBlackHole;
     if (infallSystem) infallSystem.visible = isBlackHole;
+    if (bhStencilMask) bhStencilMask.visible = isBlackHole;
+    if (innerStarSystem) innerStarSystem.visible = isBlackHole;
     if (rockSystem) rockSystem.visible = isBlackHole;
     if (rockBigSystem) rockBigSystem.visible = isBlackHole;
 
@@ -495,6 +597,16 @@ function updateBlackHoleVisuals() {
     blackHoleGroup.scale.copy(particleSystem.scale);
     blackHoleGroup.rotation.set(0, 0, particleSystem.rotation.z);
 
+    if (bhStencilMask) {
+        bhStencilMask.scale.copy(particleSystem.scale);
+        bhStencilMask.rotation.set(0, 0, particleSystem.rotation.z);
+    }
+
+    if (innerStarSystem) {
+        innerStarSystem.scale.copy(particleSystem.scale);
+        innerStarSystem.rotation.set(0, 0, particleSystem.rotation.z);
+    }
+
     bhSpin += 0.002;
 
     infallSystem.scale.copy(particleSystem.scale);
@@ -525,37 +637,91 @@ function updateBlackHoleVisuals() {
     if (rockSystem) rockSystem.visible = showInfall;
     if (rockBigSystem) rockBigSystem.visible = showInfall;
 
+    const showInnerStars = zoom > 0.10;
+    if (innerStarSystem) innerStarSystem.visible = showInnerStars;
+    if (bhStencilMask) bhStencilMask.visible = showInnerStars;
+
     const pos = infallSystem.geometry.attributes.position.array;
     const cols = infallSystem.geometry.attributes.color.array;
     const c = new THREE.Color();
 
-    for (let i = 0; i < INFALL_COUNT; i++) {
-        infallR[i] -= infallSpeed[i] * speedBoost;
-        infallA[i] += (0.02 / (infallR[i] + 0.25)) * speedBoost;
+    const allowInside = zoom > 0.12;
+    const insideRadius = inner * 0.86;
+    const outsideFade = THREE.MathUtils.clamp(1.0 - (zoom - 0.18) / 0.55, 0, 1);
 
-        if (infallR[i] < inner) {
-            resetInfallParticle(i);
+    for (let i = 0; i < INFALL_COUNT; i++) {
+        if (infallPhase[i] === 0) {
+            infallR[i] -= infallSpeed[i] * speedBoost;
+            infallA[i] += (0.02 / (infallR[i] + 0.25)) * speedBoost;
+
+            const r = infallR[i];
+            const a = infallA[i];
+            const y = infallY[i];
+
+            if (allowInside && r < inner + 0.34) {
+                infallPhase[i] = 1;
+                const aa = Math.random() * Math.PI * 2;
+                const rr = Math.sqrt(Math.random()) * insideRadius;
+                infallInX[i] = rr * Math.cos(aa);
+                infallInY[i] = rr * Math.sin(aa);
+                infallInZ[i] = 0.65 + Math.random() * 0.45;
+            }
+
+            if (infallPhase[i] === 0) {
+                if (infallR[i] < inner) {
+                    resetInfallParticle(i);
+                }
+
+                pos[i * 3] = r * Math.cos(a);
+                pos[i * 3 + 1] = y;
+                pos[i * 3 + 2] = r * Math.sin(a);
+
+                const heat = THREE.MathUtils.clamp(1.0 - (r - inner) / 5.5, 0, 1);
+                c.setHSL(0.09, 1.0, 0.35 + heat * 0.55);
+                const boost = (0.35 + zoom * 0.65) * (0.15 + outsideFade * 0.85);
+                cols[i * 3] = c.r * boost;
+                cols[i * 3 + 1] = c.g * boost;
+                cols[i * 3 + 2] = c.b * boost;
+            }
         }
 
-        const r = infallR[i];
-        const a = infallA[i];
-        const y = infallY[i];
+        if (infallPhase[i] === 1) {
+            infallInZ[i] -= infallSpeed[i] * speedBoost * 2.2;
+            pos[i * 3] = infallInX[i];
+            pos[i * 3 + 1] = infallInY[i];
+            pos[i * 3 + 2] = infallInZ[i];
 
-        pos[i * 3] = r * Math.cos(a);
-        pos[i * 3 + 1] = y;
-        pos[i * 3 + 2] = r * Math.sin(a);
+            const fade = THREE.MathUtils.clamp((0.6 - Math.abs(infallInZ[i])) / 0.6, 0, 1);
+            const boost = (0.35 + zoom * 0.65) * (0.35 + fade * 0.65);
+            c.setHSL(0.09, 1.0, 0.55);
+            cols[i * 3] = c.r * boost;
+            cols[i * 3 + 1] = c.g * boost;
+            cols[i * 3 + 2] = c.b * boost;
 
-        const heat = THREE.MathUtils.clamp(1.0 - (r - inner) / 5.5, 0, 1);
-        c.setHSL(0.09, 1.0, 0.35 + heat * 0.55);
-        const boost = 0.35 + zoom * 0.65;
-        cols[i * 3] = c.r * boost;
-        cols[i * 3 + 1] = c.g * boost;
-        cols[i * 3 + 2] = c.b * boost;
+            if (infallInZ[i] < -3.2) {
+                resetInfallParticle(i);
+            }
+        }
     }
 
     infallSystem.material.size = 0.02 + zoom * 0.03;
     infallSystem.geometry.attributes.position.needsUpdate = true;
     infallSystem.geometry.attributes.color.needsUpdate = true;
+
+    if (innerStarSystem) {
+        const sPos = innerStarSystem.geometry.attributes.position.array;
+        const zSpeed = 1.0 + zoom * 2.5;
+        for (let i = 0; i < INNER_STAR_COUNT; i++) {
+            innerStarZ[i] -= innerStarSpeed[i] * zSpeed;
+            if (innerStarZ[i] < -3.2) resetInnerStar(i);
+            sPos[i * 3] = innerStarX[i];
+            sPos[i * 3 + 1] = innerStarY[i];
+            sPos[i * 3 + 2] = innerStarZ[i];
+        }
+        innerStarSystem.material.opacity = THREE.MathUtils.clamp((zoom - 0.10) / 0.25, 0, 1) * 0.75;
+        innerStarSystem.material.size = 0.014 + zoom * 0.01;
+        innerStarSystem.geometry.attributes.position.needsUpdate = true;
+    }
 
     if (rockSystem && rockBigSystem) {
         const rockOpacity = THREE.MathUtils.clamp((zoom - 0.06) / 0.35, 0, 1);
