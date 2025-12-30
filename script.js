@@ -1,4 +1,4 @@
-let scene, camera, renderer, particleSystem, starField;
+let scene, camera, renderer, particleSystem;
 let targetScale = 1, currentScale = 1;
 let targetRotationZ = 0, currentRotationZ = 0;
 const PARTICLE_COUNT = 30000;
@@ -14,6 +14,10 @@ const musicToggleBtn = document.getElementById('musicToggle');
 
 function syncMusicButton() {
     if (!musicToggleBtn) return;
+    if (musicPlaying && audio.muted) {
+        musicToggleBtn.innerText = 'TAP TO UNMUTE';
+        return;
+    }
     musicToggleBtn.innerText = musicPlaying ? 'PAUSE AUDIO' : 'PLAY AUDIO';
 }
 
@@ -37,20 +41,27 @@ function stopMusic() {
 }
 
 async function attemptAutoplay() {
+    audio.muted = false;
+    const okAudible = await startMusic();
+    if (okAudible) return;
+
     audio.muted = true;
-    const ok = await startMusic();
-    if (ok) {
-        needsUserUnmute = true;
-        const unmuteOnce = () => {
-            if (!needsUserUnmute) return;
-            audio.muted = false;
-            needsUserUnmute = false;
-        };
-        document.addEventListener('pointerdown', unmuteOnce, { once: true });
-        document.addEventListener('keydown', unmuteOnce, { once: true });
-    } else {
+    const okMuted = await startMusic();
+    if (!okMuted) {
         audio.muted = false;
+        return;
     }
+
+    needsUserUnmute = true;
+    syncMusicButton();
+    const unmuteOnce = () => {
+        if (!needsUserUnmute) return;
+        audio.muted = false;
+        needsUserUnmute = false;
+        syncMusicButton();
+    };
+    document.addEventListener('pointerdown', unmuteOnce, { once: true });
+    document.addEventListener('keydown', unmuteOnce, { once: true });
 }
 
 if (musicToggleBtn) {
@@ -59,9 +70,17 @@ if (musicToggleBtn) {
             audio.muted = false;
             needsUserUnmute = false;
             await startMusic();
-        } else {
-            stopMusic();
+            return;
         }
+
+        if (musicPlaying && audio.muted) {
+            audio.muted = false;
+            needsUserUnmute = false;
+            syncMusicButton();
+            return;
+        }
+
+        stopMusic();
     };
 }
 
@@ -77,14 +96,6 @@ function initThree() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('container').appendChild(renderer.domElement);
-
-    const starGeo = new THREE.BufferGeometry();
-    const starPos = new Float32Array(10000 * 3);
-    for(let i=0; i<30000; i++) starPos[i] = (Math.random() - 0.5) * 1000;
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true });
-    starField = new THREE.Points(starGeo, starMat);
-    scene.add(starField);
 
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 64;
@@ -216,8 +227,6 @@ function animate() {
     particleSystem.scale.set(currentScale, currentScale, currentScale);
     particleSystem.rotation.z = currentRotationZ;
     particleSystem.rotation.y += 0.003;
-
-    starField.rotation.y += 0.0005;
 
     renderer.render(scene, camera);
 }
