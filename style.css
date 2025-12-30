@@ -34,7 +34,7 @@ body.intro-open #uiToggle {
     border-radius: 16px;
     border: 1px solid transparent;
     background:
-        linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)) padding-box,
+        linear-gradient(rgba(0, 0, 0, 0.30), rgba(0, 0, 0, 0.30)) padding-box,
         linear-gradient(135deg,
             rgba(0, 150, 255, 0.85),
             rgba(255, 255, 255, 0.55),
