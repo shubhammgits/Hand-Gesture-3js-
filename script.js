@@ -273,6 +273,35 @@ function setupHelpPanel() {
     });
 }
 
+function setupIntroOverlay() {
+    const overlay = document.getElementById('introOverlay');
+    const card = document.getElementById('introCard');
+    const closeBtn = document.getElementById('introClose');
+    const continueBtn = document.getElementById('introContinue');
+    if (!overlay || !card) return;
+
+    const close = () => {
+        document.body.classList.remove('intro-open');
+    };
+
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    if (continueBtn) continueBtn.addEventListener('click', close);
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close();
+    });
+
+    card.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') close();
+    });
+
+    document.body.classList.add('intro-open');
+}
+
 function setupCustomShapeSelect() {
     const selectEl = document.getElementById('shapeSelect');
     const uiPanel = document.getElementById('ui-panel');
@@ -355,5 +384,6 @@ function setupCustomShapeSelect() {
 setupCustomShapeSelect();
 setupResponsiveUI();
 setupHelpPanel();
+setupIntroOverlay();
 
 initThree();
