@@ -2,7 +2,7 @@
 
 Live demo: https://shubhammgits.github.io/Hand-Gesture-3js-/
 
-A browser-based interactive Three.js particle “planet” experience controlled with real-time hand gestures using MediaPipe Hands. Pinch to zoom, rotate your hand to rotate the planet, switch between planetary presets, and play background audio.
+A browser based interactive Three.js particle “planet” experience controlled with real-time hand gestures using MediaPipe Hands. Pinch to zoom, rotate your hand to rotate the planet, switch between planetary presets, and play background audio.
 
 ## Features
 
@@ -12,7 +12,6 @@ A browser-based interactive Three.js particle “planet” experience controlled
 - Multiple presets: Sun, Earth, Jupiter, Saturn, Explosion
 - Webcam preview and status indicator
 - Background audio with play/pause control
-- Mobile-friendly UI (hamburger menu + responsive overlays)
 
 ## Tech Stack
 
