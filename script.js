@@ -323,49 +323,6 @@ function createBlackHoleAssets() {
     for (let i = 0; i < INNER_STAR_COUNT; i++) {
         resetInnerStar(i, true);
     }
-
-    rockR = new Float32Array(ROCK_COUNT);
-    rockA = new Float32Array(ROCK_COUNT);
-    rockY = new Float32Array(ROCK_COUNT);
-    rockSpeed = new Float32Array(ROCK_COUNT);
-
-    const rGeo = new THREE.BufferGeometry();
-    rGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ROCK_COUNT * 3), 3));
-    rGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(ROCK_COUNT * 3), 3));
-    const rMat = new THREE.PointsMaterial({
-        size: 0.06,
-        transparent: true,
-        opacity: 0.0,
-        depthWrite: false,
-        vertexColors: true
-    });
-    rockSystem = new THREE.Points(rGeo, rMat);
-    rockSystem.visible = false;
-    rockSystem.renderOrder = 2;
-    scene.add(rockSystem);
-
-    rockBigR = new Float32Array(ROCK_BIG_COUNT);
-    rockBigA = new Float32Array(ROCK_BIG_COUNT);
-    rockBigY = new Float32Array(ROCK_BIG_COUNT);
-    rockBigSpeed = new Float32Array(ROCK_BIG_COUNT);
-
-    const rbGeo = new THREE.BufferGeometry();
-    rbGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ROCK_BIG_COUNT * 3), 3));
-    rbGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(ROCK_BIG_COUNT * 3), 3));
-    const rbMat = new THREE.PointsMaterial({
-        size: 0.11,
-        transparent: true,
-        opacity: 0.0,
-        depthWrite: false,
-        vertexColors: true
-    });
-    rockBigSystem = new THREE.Points(rbGeo, rbMat);
-    rockBigSystem.visible = false;
-    rockBigSystem.renderOrder = 2;
-    scene.add(rockBigSystem);
-
-    for (let i = 0; i < ROCK_COUNT; i++) resetRockParticle(i, true);
-    for (let i = 0; i < ROCK_BIG_COUNT; i++) resetRockBigParticle(i, true);
 }
 
 function resetInnerStar(i, init = false) {
@@ -381,34 +338,6 @@ function resetInnerStar(i, init = false) {
         pos[i * 3] = innerStarX[i];
         pos[i * 3 + 1] = innerStarY[i];
         pos[i * 3 + 2] = innerStarZ[i];
-    }
-}
-
-function resetRockParticle(i, init = false) {
-    rockA[i] = Math.random() * Math.PI * 2;
-    rockR[i] = 3.8 + Math.random() * 4.3;
-    rockY[i] = (Math.random() - 0.5) * 0.18;
-    rockSpeed[i] = 0.018 + Math.random() * 0.02;
-
-    if (!init) {
-        const pos = rockSystem.geometry.attributes.position.array;
-        pos[i * 3] = rockR[i] * Math.cos(rockA[i]);
-        pos[i * 3 + 1] = rockY[i];
-        pos[i * 3 + 2] = rockR[i] * Math.sin(rockA[i]);
-    }
-}
-
-function resetRockBigParticle(i, init = false) {
-    rockBigA[i] = Math.random() * Math.PI * 2;
-    rockBigR[i] = 4.6 + Math.random() * 4.5;
-    rockBigY[i] = (Math.random() - 0.5) * 0.22;
-    rockBigSpeed[i] = 0.014 + Math.random() * 0.018;
-
-    if (!init) {
-        const pos = rockBigSystem.geometry.attributes.position.array;
-        pos[i * 3] = rockBigR[i] * Math.cos(rockBigA[i]);
-        pos[i * 3 + 1] = rockBigY[i];
-        pos[i * 3 + 2] = rockBigR[i] * Math.sin(rockBigA[i]);
     }
 }
 
@@ -443,8 +372,6 @@ function updateShape(type) {
     if (infallSystem) infallSystem.visible = isBlackHole;
     if (bhStencilMask) bhStencilMask.visible = isBlackHole;
     if (innerStarSystem) innerStarSystem.visible = isBlackHole;
-    if (rockSystem) rockSystem.visible = isBlackHole;
-    if (rockBigSystem) rockBigSystem.visible = isBlackHole;
 
     if (particleSystem && particleSystem.material) {
         particleSystem.material.size = isBlackHole ? 0.035 : 0.05;
