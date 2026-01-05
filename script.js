@@ -757,6 +757,15 @@ function updateBlackHoleVisuals() {
     const zoom = THREE.MathUtils.clamp((currentScale - 1.0) / 3.0, 0, 1);
     const speedBoost = 1.0 + zoom * 3.0;
 
+    if (blackHoleDisk && blackHoleDisk.material && blackHoleDisk.material.uniforms) {
+        blackHoleDisk.material.uniforms.uTime.value = time;
+        blackHoleDisk.material.uniforms.uIntensity.value = 0.9 + zoom * 0.35;
+    }
+    if (blackHolePhotonRing && blackHolePhotonRing.material && blackHolePhotonRing.material.uniforms) {
+        blackHolePhotonRing.material.uniforms.uTime.value = time;
+        blackHolePhotonRing.material.uniforms.uIntensity.value = 0.85 + zoom * 0.45;
+    }
+
     const showInfall = zoom > 0.06;
     infallSystem.visible = showInfall;
 
