@@ -505,6 +505,10 @@ function animate() {
 
     particleSystem.scale.set(currentScale, currentScale, currentScale);
     particleSystem.rotation.z = currentRotationZ;
+    if (activePreset === 'blackhole') {
+        bhSpin += 0.002;
+        particleSystem.rotation.z = currentRotationZ + bhSpin * 0.25;
+    }
     if (activePreset !== 'blackhole') {
         particleSystem.rotation.y += 0.003;
     }
@@ -531,8 +535,6 @@ function updateBlackHoleVisuals() {
         innerStarSystem.scale.copy(particleSystem.scale);
         innerStarSystem.rotation.set(0, 0, particleSystem.rotation.z);
     }
-
-    bhSpin += 0.002;
 
     infallSystem.scale.copy(particleSystem.scale);
     infallSystem.rotation.set(0, 0, particleSystem.rotation.z + bhSpin * 0.08);
