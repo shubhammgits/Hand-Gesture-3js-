@@ -494,27 +494,30 @@ function updateShape(type) {
         }
         else if (type === 'blackhole') {
             const inner = 0.96;
-            const outer = 3.25;
+            const outer = 3.4;
 
-            const bias = Math.pow(Math.random(), 2.5);
-            const r = inner + (outer - inner) * bias;
-            const thick = (Math.random() - 0.5) * 0.14;
+            const mix = Math.random();
+            const biased = mix < 0.78 ? Math.pow(Math.random(), 3.4) : Math.pow(Math.random(), 0.75);
+            const r = inner + (outer - inner) * biased;
 
-            const swirl = 0.45 / (r + 0.15);
+            const swirl = 0.9 / (r + 0.25);
             const a = t + swirl;
 
             x = r * Math.cos(a);
             z = r * Math.sin(a);
-            y = thick + Math.sin(a * 3.0 + r * 2.3) * 0.03;
+
+            const thin = 0.028 + (r - inner) * 0.008;
+            y = (Math.random() - 0.5) * thin;
+            y += Math.sin(a * 2.6 + r * 2.4) * 0.01;
 
             const heat = THREE.MathUtils.clamp(1.0 - (r - inner) / (outer - inner), 0, 1);
-            const hue = 0.08 + (1.0 - heat) * 0.04;
-            const sat = 0.95;
-            const light = 0.45 + heat * 0.35;
+            const hue = 0.055 + (1.0 - heat) * 0.02;
+            const sat = 1.0;
+            const light = 0.26 + heat * 0.42;
             color.setHSL(hue, sat, light);
 
-            if (r < 1.18) {
-                color.lerp(new THREE.Color(0xffffff), 0.25);
+            if (r < 1.25) {
+                color.lerp(new THREE.Color(0xffffff), 0.42);
             }
         }
         else {
