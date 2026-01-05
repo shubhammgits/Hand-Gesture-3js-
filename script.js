@@ -564,6 +564,8 @@ cameraUtils.start();
 
 function animate() {
     requestAnimationFrame(animate);
+
+    time = performance.now() * 0.001;
     
     currentScale += (targetScale - currentScale) * 0.1;
     currentRotationZ += (targetRotationZ - currentRotationZ) * 0.1;
@@ -583,6 +585,144 @@ function animate() {
     }
 
     renderer.render(scene, camera);
+}
+
+function createAccretionDiskMaterial(innerR, outerR) {
+    return new THREE.ShaderMaterial({
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        depthTest: true,
+        side: THREE.DoubleSide,
+        uniforms: {
+            uTime: { value: 0 },
+            uInner: { value: innerR },
+            uOuter: { value: outerR },
+            uHotAngle: { value: -0.45 },
+            uIntensity: { value: 1.0 }
+        },
+        vertexShader: `
+            varying vec3 vPos;
+            void main() {
+                vPos = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            precision highp float;
+            varying vec3 vPos;
+            uniform float uTime;
+            uniform float uInner;
+            uniform float uOuter;
+            uniform float uHotAngle;
+            uniform float uIntensity;
+
+            float hash(vec2 p){
+                p = fract(p*vec2(123.34, 345.45));
+                p += dot(p, p+34.345);
+                return fract(p.x*p.y);
+            }
+
+            float noise(vec2 p){
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                float a = hash(i);
+                float b = hash(i + vec2(1.0, 0.0));
+                float c = hash(i + vec2(0.0, 1.0));
+                float d = hash(i + vec2(1.0, 1.0));
+                vec2 u = f*f*(3.0-2.0*f);
+                return mix(a, b, u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+            }
+
+            float fbm(vec2 p){
+                float v = 0.0;
+                float a = 0.5;
+                for(int i=0;i<4;i++){
+                    v += a * noise(p);
+                    p *= 2.0;
+                    a *= 0.5;
+                }
+                return v;
+            }
+
+            void main(){
+                float r = length(vPos.xy);
+                float dr = (r - uInner) / max(1e-4, (uOuter - uInner));
+                if(dr < 0.0 || dr > 1.0) discard;
+
+                float ang = atan(vPos.y, vPos.x);
+
+                float innerHot = exp(-pow((dr - 0.12)/0.14, 2.0));
+                float mid = 0.65 * exp(-pow((dr - 0.45)/0.28, 2.0));
+                float radial = innerHot + mid;
+
+                float dop = 0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
+
+                float shear = (1.0 / (r + 0.25));
+                vec2 p = vec2(dr * 6.0, ang * 1.6) + vec2(uTime * 0.25, -uTime * 0.18) * shear;
+                float n = fbm(p * 2.2);
+                float fil = smoothstep(0.15, 0.95, n);
+
+                float fadeOut = smoothstep(1.0, 0.85, dr);
+                float a = radial * dop * (0.55 + fil * 0.75) * fadeOut;
+
+                float heat = clamp(1.0 - dr, 0.0, 1.0);
+                vec3 col = mix(vec3(1.0, 0.55, 0.18), vec3(1.0, 0.90, 0.70), pow(heat, 1.2));
+                col *= (0.55 + dop * 0.8);
+
+                gl_FragColor = vec4(col * uIntensity, a * 0.9);
+            }
+        `
+    });
+}
+
+function createPhotonRingMaterial(innerR, outerR) {
+    return new THREE.ShaderMaterial({
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        depthTest: true,
+        side: THREE.DoubleSide,
+        uniforms: {
+            uTime: { value: 0 },
+            uInner: { value: innerR },
+            uOuter: { value: outerR },
+            uHotAngle: { value: -0.45 },
+            uIntensity: { value: 1.0 }
+        },
+        vertexShader: `
+            varying vec3 vPos;
+            void main() {
+                vPos = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            precision highp float;
+            varying vec3 vPos;
+            uniform float uTime;
+            uniform float uInner;
+            uniform float uOuter;
+            uniform float uHotAngle;
+            uniform float uIntensity;
+
+            void main(){
+                float r = length(vPos.xy);
+                float t = (r - uInner) / max(1e-4, (uOuter - uInner));
+                if(t < 0.0 || t > 1.0) discard;
+
+                float ang = atan(vPos.y, vPos.x);
+                float center = 0.55;
+                float band = exp(-pow((t - center) / 0.18, 2.0));
+                float dop = 0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
+                float flick = 0.85 + 0.15 * sin(uTime * 2.2 + ang * 6.0);
+
+                vec3 col = mix(vec3(1.0, 0.72, 0.25), vec3(1.0, 1.0, 1.0), 0.35);
+                float a = band * dop * flick;
+                gl_FragColor = vec4(col * uIntensity, a * 0.85);
+            }
+        `
+    });
 }
 
 function updateBlackHoleVisuals() {
