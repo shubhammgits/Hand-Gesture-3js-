@@ -537,15 +537,6 @@ function updateBlackHoleVisuals() {
     infallSystem.scale.copy(particleSystem.scale);
     infallSystem.rotation.set(0, 0, particleSystem.rotation.z + bhSpin * 0.08);
 
-    if (rockSystem) {
-        rockSystem.scale.copy(particleSystem.scale);
-        rockSystem.rotation.set(0, 0, particleSystem.rotation.z + bhSpin * 0.06);
-    }
-    if (rockBigSystem) {
-        rockBigSystem.scale.copy(particleSystem.scale);
-        rockBigSystem.rotation.set(0, 0, particleSystem.rotation.z + bhSpin * 0.05);
-    }
-
     blackHoleDisk.rotation.y = 0;
     blackHoleDisk.rotation.z += 0.02;
 
@@ -559,8 +550,6 @@ function updateBlackHoleVisuals() {
 
     const showInfall = zoom > 0.06;
     infallSystem.visible = showInfall;
-    if (rockSystem) rockSystem.visible = showInfall;
-    if (rockBigSystem) rockBigSystem.visible = showInfall;
 
     const showInnerStars = zoom > 0.10;
     if (innerStarSystem) innerStarSystem.visible = showInnerStars;
@@ -685,59 +674,6 @@ function updateBlackHoleVisuals() {
         innerStarSystem.geometry.attributes.position.needsUpdate = true;
     }
 
-    if (rockSystem && rockBigSystem) {
-        const outsideAlpha = THREE.MathUtils.clamp(1.0 - (zoom - 0.10) / 0.12, 0, 1);
-        const rockOpacity = THREE.MathUtils.clamp((zoom - 0.06) / 0.12, 0, 1) * outsideAlpha;
-        rockSystem.material.opacity = rockOpacity * 0.9;
-        rockBigSystem.material.opacity = rockOpacity * 0.75;
-        rockSystem.material.size = 0.055 + zoom * 0.03;
-        rockBigSystem.material.size = 0.10 + zoom * 0.05;
-
-        const rPos = rockSystem.geometry.attributes.position.array;
-        const rCols = rockSystem.geometry.attributes.color.array;
-        for (let i = 0; i < ROCK_COUNT; i++) {
-            rockR[i] -= rockSpeed[i] * (1.0 + zoom * 2.0);
-            rockA[i] += (0.012 / (rockR[i] + 0.35)) * (1.0 + zoom * 2.0);
-            if (rockR[i] < inner) resetRockParticle(i);
-
-            const r = rockR[i];
-            const a = rockA[i];
-            rPos[i * 3] = r * Math.cos(a);
-            rPos[i * 3 + 1] = rockY[i];
-            rPos[i * 3 + 2] = r * Math.sin(a);
-
-            const heat = THREE.MathUtils.clamp(1.0 - (r - inner) / 7.0, 0, 1);
-            const base = 0.25 + heat * 0.2;
-            const warm = 0.06 * heat;
-            rCols[i * 3] = base + warm;
-            rCols[i * 3 + 1] = base;
-            rCols[i * 3 + 2] = base * 0.95;
-        }
-        rockSystem.geometry.attributes.position.needsUpdate = true;
-        rockSystem.geometry.attributes.color.needsUpdate = true;
-
-        const rbPos = rockBigSystem.geometry.attributes.position.array;
-        const rbCols = rockBigSystem.geometry.attributes.color.array;
-        for (let i = 0; i < ROCK_BIG_COUNT; i++) {
-            rockBigR[i] -= rockBigSpeed[i] * (1.0 + zoom * 2.1);
-            rockBigA[i] += (0.009 / (rockBigR[i] + 0.35)) * (1.0 + zoom * 2.1);
-            if (rockBigR[i] < inner) resetRockBigParticle(i);
-
-            const r = rockBigR[i];
-            const a = rockBigA[i];
-            rbPos[i * 3] = r * Math.cos(a);
-            rbPos[i * 3 + 1] = rockBigY[i];
-            rbPos[i * 3 + 2] = r * Math.sin(a);
-
-            const heat = THREE.MathUtils.clamp(1.0 - (r - inner) / 7.5, 0, 1);
-            const base = 0.22 + heat * 0.18;
-            rbCols[i * 3] = base;
-            rbCols[i * 3 + 1] = base;
-            rbCols[i * 3 + 2] = base;
-        }
-        rockBigSystem.geometry.attributes.position.needsUpdate = true;
-        rockBigSystem.geometry.attributes.color.needsUpdate = true;
-    }
 }
 
 document.getElementById('shapeSelect').onchange = (e) => updateShape(e.target.value);
