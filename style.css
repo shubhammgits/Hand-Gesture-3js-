@@ -141,7 +141,7 @@ select:focus, button:focus {
 }
 select:hover, button:hover { border-color: rgba(136, 207, 255, 0.55); }
 
-#shapeSelect { display: none; }
+#shapeSelect, #bhLookSelect { display: none; }
 
 .custom-select { position: relative; width: 100%; z-index: 10; }
 .custom-select.open { z-index: 30; }

@@ -1,12 +1,55 @@
 let scene, camera, renderer, particleSystem;
 let bgMesh;
 let blackHoleGroup, blackHoleCore, blackHoleDisk, blackHoleHalo, blackHolePhotonRing;
+let blackHoleDiskMaterials, blackHolePhotonRingMaterials;
 let infallSystem;
 let bhStencilMask;
 let innerStarSystem;
 let activePreset = 'sun';
 let time = 0;
 let bhSpin = 0;
+let blackHoleLook = 'cinematic';
+
+const BLACK_HOLE_LOOKS = {
+    cinematic: {
+        diskIntensityBase: 0.9,
+        diskIntensityZoom: 0.35,
+        ringIntensityBase: 0.85,
+        ringIntensityZoom: 0.45,
+        haloOpacity: 1.0,
+        infallOutsideBoostBase: 0.25,
+        infallOutsideBoostZoom: 0.55,
+        infallOutsideSat: 1.0,
+        infallOutsideLightBase: 0.35,
+        infallOutsideLightBoost: 0.45,
+        infallInsideBoostBase: 0.35,
+        infallInsideBoostZoom: 0.65,
+        infallInsideSat: 1.0,
+        infallInsideLight: 0.55,
+        infallSizeBase: 0.02,
+        infallSizeZoom: 0.03,
+        innerStarsOpacityMax: 0.75
+    },
+    scientific: {
+        diskIntensityBase: 0.55,
+        diskIntensityZoom: 0.25,
+        ringIntensityBase: 0.40,
+        ringIntensityZoom: 0.25,
+        haloOpacity: 0.38,
+        infallOutsideBoostBase: 0.18,
+        infallOutsideBoostZoom: 0.35,
+        infallOutsideSat: 0.9,
+        infallOutsideLightBase: 0.28,
+        infallOutsideLightBoost: 0.35,
+        infallInsideBoostBase: 0.22,
+        infallInsideBoostZoom: 0.45,
+        infallInsideSat: 0.9,
+        infallInsideLight: 0.50,
+        infallSizeBase: 0.016,
+        infallSizeZoom: 0.02,
+        innerStarsOpacityMax: 0.45
+    }
+};
 
 const INFALL_COUNT = 8000;
 let infallR;
@@ -193,6 +236,17 @@ function createGlowTexture(innerColor, outerColor) {
     return tex;
 }
 
+function applyBlackHoleLook() {
+    if (blackHoleDisk && blackHoleDiskMaterials) {
+        const mat = blackHoleDiskMaterials[blackHoleLook] || blackHoleDiskMaterials.cinematic;
+        if (blackHoleDisk.material !== mat) blackHoleDisk.material = mat;
+    }
+    if (blackHolePhotonRing && blackHolePhotonRingMaterials) {
+        const mat = blackHolePhotonRingMaterials[blackHoleLook] || blackHolePhotonRingMaterials.cinematic;
+        if (blackHolePhotonRing.material !== mat) blackHolePhotonRing.material = mat;
+    }
+}
+
 function createAccretionDiskTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -309,7 +363,10 @@ function createBlackHoleAssets() {
 
     blackHolePhotonRing = new THREE.Mesh(
         new THREE.RingGeometry(0.88, 1.02, 128),
-        createPhotonRingMaterial(0.88, 1.02)
+        (blackHolePhotonRingMaterials = {
+            cinematic: createPhotonRingMaterial(0.88, 1.02, 'cinematic'),
+            scientific: createPhotonRingMaterial(0.88, 1.02, 'scientific')
+        }).cinematic
     );
     blackHolePhotonRing.renderOrder = 6;
     blackHoleGroup.add(blackHolePhotonRing);
@@ -317,14 +374,17 @@ function createBlackHoleAssets() {
     const haloTex = createGlowTexture('rgba(255,255,255,0.75)', 'rgba(255,210,160,0.12)');
     blackHoleHalo = new THREE.Mesh(
         new THREE.RingGeometry(0.92, 1.32, 96),
-        new THREE.MeshBasicMaterial({ map: haloTex, transparent: true, opacity: 0.38, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
+        new THREE.MeshBasicMaterial({ map: haloTex, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
     );
     blackHoleHalo.renderOrder = 7;
     blackHoleGroup.add(blackHoleHalo);
 
     blackHoleDisk = new THREE.Mesh(
         new THREE.RingGeometry(1.05, 2.85, 128, 1),
-        createAccretionDiskMaterial(1.05, 2.85)
+        (blackHoleDiskMaterials = {
+            cinematic: createAccretionDiskMaterial(1.05, 2.85, 'cinematic'),
+            scientific: createAccretionDiskMaterial(1.05, 2.85, 'scientific')
+        }).cinematic
     );
     blackHoleDisk.rotation.x = 1.12;
     blackHoleDisk.renderOrder = 5;
@@ -348,9 +408,9 @@ function createBlackHoleAssets() {
     infallSpriteCanvas.height = 64;
     const infallSpriteCtx = infallSpriteCanvas.getContext('2d');
     const g = infallSpriteCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
-    g.addColorStop(0.0, 'rgba(255, 235, 200, 0.75)');
-    g.addColorStop(0.25, 'rgba(255, 210, 150, 0.55)');
-    g.addColorStop(0.55, 'rgba(255, 175, 90, 0.12)');
+    g.addColorStop(0.0, 'rgba(255, 220, 160, 1)');
+    g.addColorStop(0.25, 'rgba(255, 200, 120, 0.85)');
+    g.addColorStop(0.55, 'rgba(255, 170, 70, 0.22)');
     g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
     infallSpriteCtx.fillStyle = g;
     infallSpriteCtx.fillRect(0, 0, 64, 64);
@@ -363,7 +423,7 @@ function createBlackHoleAssets() {
     iGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(INFALL_COUNT * 3), 3));
 
     const iMat = new THREE.PointsMaterial({
-        size: 0.022,
+        size: 0.03,
         map: infallSpriteTex,
         transparent: true,
         blending: THREE.AdditiveBlending,
@@ -585,7 +645,23 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-function createAccretionDiskMaterial(innerR, outerR) {
+function createAccretionDiskMaterial(innerR, outerR, mode = 'cinematic') {
+    const isScientific = mode === 'scientific';
+    const uIntensityValue = isScientific ? 0.65 : 1.0;
+    const dopExpr = isScientific
+        ? '0.45 + 0.55 * pow(max(0.0, cos(ang - uHotAngle)), 3.0)'
+        : '0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0)';
+    const alphaExpr = isScientific
+        ? 'radial * (0.25 + fil * 0.45) * fadeOut * (0.55 + 0.45 * dop)'
+        : 'radial * dop * (0.55 + fil * 0.75) * fadeOut';
+    const colExpr = isScientific
+        ? 'mix(vec3(0.95, 0.82, 0.60), vec3(1.0, 0.95, 0.90), pow(heat, 1.1))'
+        : 'mix(vec3(1.0, 0.55, 0.18), vec3(1.0, 0.90, 0.70), pow(heat, 1.2))';
+    const colScaleExpr = isScientific
+        ? '(0.55 + dop * 0.35)'
+        : '(0.55 + dop * 0.8)';
+    const outAlpha = isScientific ? '0.55' : '0.9';
+
     return new THREE.ShaderMaterial({
         transparent: true,
         blending: THREE.AdditiveBlending,
@@ -597,7 +673,7 @@ function createAccretionDiskMaterial(innerR, outerR) {
             uInner: { value: innerR },
             uOuter: { value: outerR },
             uHotAngle: { value: -0.45 },
-            uIntensity: { value: 0.65 }
+            uIntensity: { value: uIntensityValue }
         },
         vertexShader: `
             varying vec3 vPos;
@@ -654,7 +730,7 @@ function createAccretionDiskMaterial(innerR, outerR) {
                 float mid = 0.65 * exp(-pow((dr - 0.45)/0.28, 2.0));
                 float radial = innerHot + mid;
 
-                float dop = 0.45 + 0.55 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
+                float dop = ${dopExpr};
 
                 float shear = (1.0 / (r + 0.25));
                 vec2 p = vec2(dr * 6.0, ang * 1.6) + vec2(uTime * 0.25, -uTime * 0.18) * shear;
@@ -662,19 +738,37 @@ function createAccretionDiskMaterial(innerR, outerR) {
                 float fil = smoothstep(0.15, 0.95, n);
 
                 float fadeOut = smoothstep(1.0, 0.85, dr);
-                float a = radial * (0.25 + fil * 0.45) * fadeOut * (0.55 + 0.45 * dop);
+                float a = ${alphaExpr};
 
                 float heat = clamp(1.0 - dr, 0.0, 1.0);
-                vec3 col = mix(vec3(0.95, 0.82, 0.60), vec3(1.0, 0.95, 0.90), pow(heat, 1.1));
-                col *= (0.55 + dop * 0.35);
+                vec3 col = ${colExpr};
+                col *= ${colScaleExpr};
 
-                gl_FragColor = vec4(col * uIntensity, a * 0.55);
+                gl_FragColor = vec4(col * uIntensity, a * ${outAlpha});
             }
         `
     });
 }
 
-function createPhotonRingMaterial(innerR, outerR) {
+function createPhotonRingMaterial(innerR, outerR, mode = 'cinematic') {
+    const isScientific = mode === 'scientific';
+    const uIntensityValue = isScientific ? 0.5 : 1.0;
+    const centerValue = isScientific ? 0.52 : 0.55;
+    const widthValue = isScientific ? 0.09 : 0.18;
+    const dopExpr = isScientific
+        ? '0.50 + 0.50 * pow(max(0.0, cos(ang - uHotAngle)), 3.0)'
+        : '0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0)';
+    const flickExpr = isScientific
+        ? '0.95 + 0.05 * sin(uTime * 1.5 + ang * 5.0)'
+        : '0.85 + 0.15 * sin(uTime * 2.2 + ang * 6.0)';
+    const colExpr = isScientific
+        ? 'mix(vec3(1.0, 0.92, 0.72), vec3(1.0, 1.0, 1.0), 0.25)'
+        : 'mix(vec3(1.0, 0.72, 0.25), vec3(1.0, 1.0, 1.0), 0.35)';
+    const alphaExpr = isScientific
+        ? 'band * (0.65 + 0.35 * dop) * flick'
+        : 'band * dop * flick';
+    const outAlpha = isScientific ? '0.55' : '0.85';
+
     return new THREE.ShaderMaterial({
         transparent: true,
         blending: THREE.AdditiveBlending,
@@ -686,7 +780,7 @@ function createPhotonRingMaterial(innerR, outerR) {
             uInner: { value: innerR },
             uOuter: { value: outerR },
             uHotAngle: { value: -0.45 },
-            uIntensity: { value: 0.5 }
+            uIntensity: { value: uIntensityValue }
         },
         vertexShader: `
             varying vec3 vPos;
@@ -710,14 +804,14 @@ function createPhotonRingMaterial(innerR, outerR) {
                 if(t < 0.0 || t > 1.0) discard;
 
                 float ang = atan(vPos.y, vPos.x);
-                float center = 0.52;
-                float band = exp(-pow((t - center) / 0.09, 2.0));
-                float dop = 0.50 + 0.50 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
-                float flick = 0.95 + 0.05 * sin(uTime * 1.5 + ang * 5.0);
+                float center = ${centerValue};
+                float band = exp(-pow((t - center) / ${widthValue}, 2.0));
+                float dop = ${dopExpr};
+                float flick = ${flickExpr};
 
-                vec3 col = mix(vec3(1.0, 0.92, 0.72), vec3(1.0, 1.0, 1.0), 0.25);
-                float a = band * (0.65 + 0.35 * dop) * flick;
-                gl_FragColor = vec4(col * uIntensity, a * 0.55);
+                vec3 col = ${colExpr};
+                float a = ${alphaExpr};
+                gl_FragColor = vec4(col * uIntensity, a * ${outAlpha});
             }
         `
     });
@@ -725,6 +819,9 @@ function createPhotonRingMaterial(innerR, outerR) {
 
 function updateBlackHoleVisuals() {
     if (!blackHoleGroup || !infallSystem) return;
+
+    const look = BLACK_HOLE_LOOKS[blackHoleLook] || BLACK_HOLE_LOOKS.cinematic;
+    applyBlackHoleLook();
 
     blackHoleGroup.scale.copy(particleSystem.scale);
     blackHoleGroup.rotation.set(0, 0, particleSystem.rotation.z);
@@ -753,17 +850,21 @@ function updateBlackHoleVisuals() {
     blackHoleHalo.rotation.y = 0;
     blackHoleHalo.rotation.z += 0.008;
 
+    if (blackHoleHalo && blackHoleHalo.material) {
+        blackHoleHalo.material.opacity = look.haloOpacity;
+    }
+
     const inner = 0.95;
     const zoom = THREE.MathUtils.clamp((currentScale - 1.0) / 3.0, 0, 1);
     const speedBoost = 1.0 + zoom * 3.0;
 
     if (blackHoleDisk && blackHoleDisk.material && blackHoleDisk.material.uniforms) {
         blackHoleDisk.material.uniforms.uTime.value = time;
-        blackHoleDisk.material.uniforms.uIntensity.value = 0.55 + zoom * 0.25;
+        blackHoleDisk.material.uniforms.uIntensity.value = look.diskIntensityBase + zoom * look.diskIntensityZoom;
     }
     if (blackHolePhotonRing && blackHolePhotonRing.material && blackHolePhotonRing.material.uniforms) {
         blackHolePhotonRing.material.uniforms.uTime.value = time;
-        blackHolePhotonRing.material.uniforms.uIntensity.value = 0.40 + zoom * 0.25;
+        blackHolePhotonRing.material.uniforms.uIntensity.value = look.ringIntensityBase + zoom * look.ringIntensityZoom;
     }
 
     const showInfall = zoom > 0.06;
@@ -846,8 +947,8 @@ function updateBlackHoleVisuals() {
                 pos[i * 3 + 2] = z0;
 
                 const heat = THREE.MathUtils.clamp(1.0 - distXY / 6.5, 0, 1);
-                c.setHSL(0.10, 0.9, 0.28 + heat * 0.35);
-                const boost = (0.18 + zoom * 0.35) * outsideAlpha;
+                c.setHSL(0.10, look.infallOutsideSat, look.infallOutsideLightBase + heat * look.infallOutsideLightBoost);
+                const boost = (look.infallOutsideBoostBase + zoom * look.infallOutsideBoostZoom) * outsideAlpha;
                 cols[i * 3] = c.r * boost;
                 cols[i * 3 + 1] = c.g * boost;
                 cols[i * 3 + 2] = c.b * boost;
@@ -861,8 +962,8 @@ function updateBlackHoleVisuals() {
             pos[i * 3 + 2] = infallInZ[i];
 
             const fade = THREE.MathUtils.clamp((0.6 - Math.abs(infallInZ[i])) / 0.6, 0, 1);
-            const boost = (0.22 + zoom * 0.45) * (0.25 + fade * 0.55);
-            c.setHSL(0.09, 0.9, 0.50);
+            const boost = (look.infallInsideBoostBase + zoom * look.infallInsideBoostZoom) * (0.35 + fade * 0.65);
+            c.setHSL(0.09, look.infallInsideSat, look.infallInsideLight);
             cols[i * 3] = c.r * boost;
             cols[i * 3 + 1] = c.g * boost;
             cols[i * 3 + 2] = c.b * boost;
@@ -873,7 +974,7 @@ function updateBlackHoleVisuals() {
         }
     }
 
-    infallSystem.material.size = 0.016 + zoom * 0.02;
+    infallSystem.material.size = look.infallSizeBase + zoom * look.infallSizeZoom;
     infallSystem.geometry.attributes.position.needsUpdate = true;
     infallSystem.geometry.attributes.color.needsUpdate = true;
 
@@ -887,7 +988,7 @@ function updateBlackHoleVisuals() {
             sPos[i * 3 + 1] = innerStarY[i];
             sPos[i * 3 + 2] = innerStarZ[i];
         }
-        innerStarSystem.material.opacity = THREE.MathUtils.clamp((zoom - 0.10) / 0.25, 0, 1) * 0.45;
+        innerStarSystem.material.opacity = THREE.MathUtils.clamp((zoom - 0.10) / 0.25, 0, 1) * look.innerStarsOpacityMax;
         innerStarSystem.material.size = 0.014 + zoom * 0.01;
         innerStarSystem.geometry.attributes.position.needsUpdate = true;
     }
@@ -895,6 +996,15 @@ function updateBlackHoleVisuals() {
 }
 
 document.getElementById('shapeSelect').onchange = (e) => updateShape(e.target.value);
+
+const bhLookSelectEl = document.getElementById('bhLookSelect');
+if (bhLookSelectEl) {
+    blackHoleLook = bhLookSelectEl.value || blackHoleLook;
+    bhLookSelectEl.onchange = (e) => {
+        blackHoleLook = e.target.value || 'cinematic';
+        applyBlackHoleLook();
+    };
+}
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -974,8 +1084,8 @@ function setupIntroOverlay() {
     document.body.classList.add('intro-open');
 }
 
-function setupCustomShapeSelect() {
-    const selectEl = document.getElementById('shapeSelect');
+function setupCustomSelect(selectId) {
+    const selectEl = document.getElementById(selectId);
     const uiPanel = document.getElementById('ui-panel');
     if (!selectEl) return;
     if (selectEl.dataset.customized === '1') return;
@@ -1053,7 +1163,8 @@ function setupCustomShapeSelect() {
     wrapper.appendChild(menu);
 }
 
-setupCustomShapeSelect();
+setupCustomSelect('shapeSelect');
+setupCustomSelect('bhLookSelect');
 setupResponsiveUI();
 setupHelpPanel();
 setupIntroOverlay();
