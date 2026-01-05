@@ -329,7 +329,7 @@ function createBlackHoleAssets() {
         new THREE.MeshBasicMaterial({ map: diskTex, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
     );
     blackHoleDisk.rotation.x = 1.12;
-    blackHoleDisk.renderOrder = 6;
+    blackHoleDisk.renderOrder = 5;
     blackHoleGroup.add(blackHoleDisk);
 
     infallR = new Float32Array(INFALL_COUNT);
@@ -606,6 +606,10 @@ function updateBlackHoleVisuals() {
 
     blackHoleDisk.rotation.y = 0;
     blackHoleDisk.rotation.z += 0.02;
+
+    if (blackHolePhotonRing) {
+        blackHolePhotonRing.rotation.z -= 0.004;
+    }
 
     blackHoleHalo.rotation.x = 0;
     blackHoleHalo.rotation.y = 0;
