@@ -1,6 +1,6 @@
 let scene, camera, renderer, particleSystem;
 let bgMesh;
-let blackHoleGroup, blackHoleCore, blackHoleDisk, blackHoleHalo;
+let blackHoleGroup, blackHoleCore, blackHoleDisk, blackHoleHalo, blackHolePhotonRing;
 let infallSystem;
 let bhStencilMask;
 let innerStarSystem;
@@ -121,6 +121,7 @@ function initThree() {
     camera.position.z = 5;
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('container').appendChild(renderer.domElement);
@@ -134,6 +135,7 @@ function initThree() {
     grad.addColorStop(1, 'black');
     ctx.fillStyle = grad; ctx.fillRect(0,0,64,64);
     const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PARTICLE_COUNT * 3), 3));
@@ -185,6 +187,58 @@ function createGlowTexture(innerColor, outerColor) {
     g.addColorStop(1.0, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 256, 256);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    return tex;
+}
+
+function createAccretionDiskTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    const image = ctx.createImageData(canvas.width, canvas.height);
+    const data = image.data;
+
+    const cx = canvas.width * 0.5;
+    const cy = canvas.height * 0.5;
+    const inner = 0.34;
+    const outer = 0.92;
+    const hotAngle = -0.35;
+
+    for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+            const nx = (x - cx) / cx;
+            const ny = (y - cy) / cy;
+            const r = Math.hypot(nx, ny);
+            const idx = (y * canvas.width + x) * 4;
+
+            if (r < inner || r > outer) {
+                data[idx + 3] = 0;
+                continue;
+            }
+
+            const angle = Math.atan2(ny, nx);
+            const dr = (r - inner) / (outer - inner);
+            const radial = Math.exp(-Math.pow((dr - 0.18) / 0.22, 2.0)) + 0.45 * Math.exp(-Math.pow((dr - 0.55) / 0.28, 2.0));
+            const doppler = Math.pow(Math.max(0, Math.cos(angle - hotAngle)), 2.6);
+            const flicker = 0.85 + (Math.sin((nx + ny) * 30.0) * 0.08) + (Math.sin((nx * 17.0 - ny * 23.0) * 8.0) * 0.06);
+            const a = THREE.MathUtils.clamp(radial * (0.55 + doppler * 0.9) * flicker, 0, 1);
+
+            const heat = THREE.MathUtils.clamp(1.0 - dr, 0, 1);
+            const rr = 255;
+            const gg = Math.round(160 + heat * 55);
+            const bb = Math.round(70 + heat * 35);
+
+            data[idx] = rr;
+            data[idx + 1] = gg;
+            data[idx + 2] = bb;
+            data[idx + 3] = Math.round(a * 255);
+        }
+    }
+
+    ctx.putImageData(image, 0, 0);
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.needsUpdate = true;
@@ -253,6 +307,14 @@ function createBlackHoleAssets() {
     blackHoleCore.renderOrder = 4;
     blackHoleGroup.add(blackHoleCore);
 
+    const photonTex = createGlowTexture('rgba(255,255,255,0.85)', 'rgba(255,180,90,0.05)');
+    blackHolePhotonRing = new THREE.Mesh(
+        new THREE.RingGeometry(0.88, 1.02, 128),
+        new THREE.MeshBasicMaterial({ map: photonTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
+    );
+    blackHolePhotonRing.renderOrder = 6;
+    blackHoleGroup.add(blackHolePhotonRing);
+
     const haloTex = createGlowTexture('rgba(255,255,255,0.75)', 'rgba(255,210,160,0.12)');
     blackHoleHalo = new THREE.Mesh(
         new THREE.RingGeometry(0.92, 1.32, 96),
@@ -261,10 +323,10 @@ function createBlackHoleAssets() {
     blackHoleHalo.renderOrder = 7;
     blackHoleGroup.add(blackHoleHalo);
 
-    const diskTex = createGlowTexture('rgba(255,210,150,0.85)', 'rgba(255,140,60,0.08)');
+    const diskTex = createAccretionDiskTexture();
     blackHoleDisk = new THREE.Mesh(
         new THREE.RingGeometry(1.05, 2.85, 128, 1),
-        new THREE.MeshBasicMaterial({ map: diskTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
+        new THREE.MeshBasicMaterial({ map: diskTex, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
     );
     blackHoleDisk.rotation.x = 1.12;
     blackHoleDisk.renderOrder = 6;
