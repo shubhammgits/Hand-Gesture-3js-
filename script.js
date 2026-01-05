@@ -307,10 +307,9 @@ function createBlackHoleAssets() {
     blackHoleCore.renderOrder = 4;
     blackHoleGroup.add(blackHoleCore);
 
-    const photonTex = createGlowTexture('rgba(255,255,255,0.85)', 'rgba(255,180,90,0.05)');
     blackHolePhotonRing = new THREE.Mesh(
         new THREE.RingGeometry(0.88, 1.02, 128),
-        new THREE.MeshBasicMaterial({ map: photonTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
+        createPhotonRingMaterial(0.88, 1.02)
     );
     blackHolePhotonRing.renderOrder = 6;
     blackHoleGroup.add(blackHolePhotonRing);
@@ -323,10 +322,9 @@ function createBlackHoleAssets() {
     blackHoleHalo.renderOrder = 7;
     blackHoleGroup.add(blackHoleHalo);
 
-    const diskTex = createAccretionDiskTexture();
     blackHoleDisk = new THREE.Mesh(
         new THREE.RingGeometry(1.05, 2.85, 128, 1),
-        new THREE.MeshBasicMaterial({ map: diskTex, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
+        createAccretionDiskMaterial(1.05, 2.85)
     );
     blackHoleDisk.rotation.x = 1.12;
     blackHoleDisk.renderOrder = 5;
