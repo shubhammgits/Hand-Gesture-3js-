@@ -317,7 +317,7 @@ function createBlackHoleAssets() {
     const haloTex = createGlowTexture('rgba(255,255,255,0.75)', 'rgba(255,210,160,0.12)');
     blackHoleHalo = new THREE.Mesh(
         new THREE.RingGeometry(0.92, 1.32, 96),
-        new THREE.MeshBasicMaterial({ map: haloTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
+        new THREE.MeshBasicMaterial({ map: haloTex, transparent: true, opacity: 0.38, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false, depthTest: true })
     );
     blackHoleHalo.renderOrder = 7;
     blackHoleGroup.add(blackHoleHalo);
@@ -348,9 +348,9 @@ function createBlackHoleAssets() {
     infallSpriteCanvas.height = 64;
     const infallSpriteCtx = infallSpriteCanvas.getContext('2d');
     const g = infallSpriteCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
-    g.addColorStop(0.0, 'rgba(255, 220, 160, 1)');
-    g.addColorStop(0.25, 'rgba(255, 200, 120, 0.85)');
-    g.addColorStop(0.55, 'rgba(255, 170, 70, 0.22)');
+    g.addColorStop(0.0, 'rgba(255, 235, 200, 0.75)');
+    g.addColorStop(0.25, 'rgba(255, 210, 150, 0.55)');
+    g.addColorStop(0.55, 'rgba(255, 175, 90, 0.12)');
     g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
     infallSpriteCtx.fillStyle = g;
     infallSpriteCtx.fillRect(0, 0, 64, 64);
@@ -363,7 +363,7 @@ function createBlackHoleAssets() {
     iGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(INFALL_COUNT * 3), 3));
 
     const iMat = new THREE.PointsMaterial({
-        size: 0.03,
+        size: 0.022,
         map: infallSpriteTex,
         transparent: true,
         blending: THREE.AdditiveBlending,
@@ -759,11 +759,11 @@ function updateBlackHoleVisuals() {
 
     if (blackHoleDisk && blackHoleDisk.material && blackHoleDisk.material.uniforms) {
         blackHoleDisk.material.uniforms.uTime.value = time;
-        blackHoleDisk.material.uniforms.uIntensity.value = 0.9 + zoom * 0.35;
+        blackHoleDisk.material.uniforms.uIntensity.value = 0.55 + zoom * 0.25;
     }
     if (blackHolePhotonRing && blackHolePhotonRing.material && blackHolePhotonRing.material.uniforms) {
         blackHolePhotonRing.material.uniforms.uTime.value = time;
-        blackHolePhotonRing.material.uniforms.uIntensity.value = 0.85 + zoom * 0.45;
+        blackHolePhotonRing.material.uniforms.uIntensity.value = 0.40 + zoom * 0.25;
     }
 
     const showInfall = zoom > 0.06;
@@ -846,8 +846,8 @@ function updateBlackHoleVisuals() {
                 pos[i * 3 + 2] = z0;
 
                 const heat = THREE.MathUtils.clamp(1.0 - distXY / 6.5, 0, 1);
-                c.setHSL(0.10, 1.0, 0.35 + heat * 0.45);
-                const boost = (0.25 + zoom * 0.55) * outsideAlpha;
+                c.setHSL(0.10, 0.9, 0.28 + heat * 0.35);
+                const boost = (0.18 + zoom * 0.35) * outsideAlpha;
                 cols[i * 3] = c.r * boost;
                 cols[i * 3 + 1] = c.g * boost;
                 cols[i * 3 + 2] = c.b * boost;
@@ -861,8 +861,8 @@ function updateBlackHoleVisuals() {
             pos[i * 3 + 2] = infallInZ[i];
 
             const fade = THREE.MathUtils.clamp((0.6 - Math.abs(infallInZ[i])) / 0.6, 0, 1);
-            const boost = (0.35 + zoom * 0.65) * (0.35 + fade * 0.65);
-            c.setHSL(0.09, 1.0, 0.55);
+            const boost = (0.22 + zoom * 0.45) * (0.25 + fade * 0.55);
+            c.setHSL(0.09, 0.9, 0.50);
             cols[i * 3] = c.r * boost;
             cols[i * 3 + 1] = c.g * boost;
             cols[i * 3 + 2] = c.b * boost;
@@ -873,7 +873,7 @@ function updateBlackHoleVisuals() {
         }
     }
 
-    infallSystem.material.size = 0.02 + zoom * 0.03;
+    infallSystem.material.size = 0.016 + zoom * 0.02;
     infallSystem.geometry.attributes.position.needsUpdate = true;
     infallSystem.geometry.attributes.color.needsUpdate = true;
 
@@ -887,7 +887,7 @@ function updateBlackHoleVisuals() {
             sPos[i * 3 + 1] = innerStarY[i];
             sPos[i * 3 + 2] = innerStarZ[i];
         }
-        innerStarSystem.material.opacity = THREE.MathUtils.clamp((zoom - 0.10) / 0.25, 0, 1) * 0.75;
+        innerStarSystem.material.opacity = THREE.MathUtils.clamp((zoom - 0.10) / 0.25, 0, 1) * 0.45;
         innerStarSystem.material.size = 0.014 + zoom * 0.01;
         innerStarSystem.geometry.attributes.position.needsUpdate = true;
     }
