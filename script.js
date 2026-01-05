@@ -597,7 +597,7 @@ function createAccretionDiskMaterial(innerR, outerR) {
             uInner: { value: innerR },
             uOuter: { value: outerR },
             uHotAngle: { value: -0.45 },
-            uIntensity: { value: 1.0 }
+            uIntensity: { value: 0.65 }
         },
         vertexShader: `
             varying vec3 vPos;
@@ -654,7 +654,7 @@ function createAccretionDiskMaterial(innerR, outerR) {
                 float mid = 0.65 * exp(-pow((dr - 0.45)/0.28, 2.0));
                 float radial = innerHot + mid;
 
-                float dop = 0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
+                float dop = 0.45 + 0.55 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
 
                 float shear = (1.0 / (r + 0.25));
                 vec2 p = vec2(dr * 6.0, ang * 1.6) + vec2(uTime * 0.25, -uTime * 0.18) * shear;
@@ -662,13 +662,13 @@ function createAccretionDiskMaterial(innerR, outerR) {
                 float fil = smoothstep(0.15, 0.95, n);
 
                 float fadeOut = smoothstep(1.0, 0.85, dr);
-                float a = radial * dop * (0.55 + fil * 0.75) * fadeOut;
+                float a = radial * (0.25 + fil * 0.45) * fadeOut * (0.55 + 0.45 * dop);
 
                 float heat = clamp(1.0 - dr, 0.0, 1.0);
-                vec3 col = mix(vec3(1.0, 0.55, 0.18), vec3(1.0, 0.90, 0.70), pow(heat, 1.2));
-                col *= (0.55 + dop * 0.8);
+                vec3 col = mix(vec3(0.95, 0.82, 0.60), vec3(1.0, 0.95, 0.90), pow(heat, 1.1));
+                col *= (0.55 + dop * 0.35);
 
-                gl_FragColor = vec4(col * uIntensity, a * 0.9);
+                gl_FragColor = vec4(col * uIntensity, a * 0.55);
             }
         `
     });
@@ -686,7 +686,7 @@ function createPhotonRingMaterial(innerR, outerR) {
             uInner: { value: innerR },
             uOuter: { value: outerR },
             uHotAngle: { value: -0.45 },
-            uIntensity: { value: 1.0 }
+            uIntensity: { value: 0.5 }
         },
         vertexShader: `
             varying vec3 vPos;
@@ -710,14 +710,14 @@ function createPhotonRingMaterial(innerR, outerR) {
                 if(t < 0.0 || t > 1.0) discard;
 
                 float ang = atan(vPos.y, vPos.x);
-                float center = 0.55;
-                float band = exp(-pow((t - center) / 0.18, 2.0));
-                float dop = 0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
-                float flick = 0.85 + 0.15 * sin(uTime * 2.2 + ang * 6.0);
+                float center = 0.52;
+                float band = exp(-pow((t - center) / 0.09, 2.0));
+                float dop = 0.50 + 0.50 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
+                float flick = 0.95 + 0.05 * sin(uTime * 1.5 + ang * 5.0);
 
-                vec3 col = mix(vec3(1.0, 0.72, 0.25), vec3(1.0, 1.0, 1.0), 0.35);
-                float a = band * dop * flick;
-                gl_FragColor = vec4(col * uIntensity, a * 0.85);
+                vec3 col = mix(vec3(1.0, 0.92, 0.72), vec3(1.0, 1.0, 1.0), 0.25);
+                float a = band * (0.65 + 0.35 * dop) * flick;
+                gl_FragColor = vec4(col * uIntensity, a * 0.55);
             }
         `
     });
