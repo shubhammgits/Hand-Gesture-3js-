@@ -46,6 +46,28 @@ let spaceHP = 3;
 let spaceInvuln = 0;
 let spaceGameState = 'idle';
 let lastFrameT = 0;
+let fpsSmoothed = 60;
+let cameraShake = 0;
+let savedCameraState = null;
+let savedFog;
+
+let sharedSpriteTexture;
+
+let spaceTrail;
+let trailHead = 0;
+const TRAIL_COUNT = 220;
+
+const spaceExplosions = [];
+
+let gameAudio = {
+    ctx: null,
+    master: null,
+    engineGain: null,
+    engineOsc: null,
+    engineNoise: null,
+    engineFilter: null,
+    enabled: false
+};
 
 const SPACE = {
     boundsX: 3.3,
@@ -82,11 +104,11 @@ function createSpaceRunnerAssets() {
     spaceGroup.add(spaceDir);
 
     const shipMat = new THREE.MeshStandardMaterial({
-        color: 0x8ad7ff,
-        emissive: 0x0f3a55,
-        emissiveIntensity: 1.2,
-        metalness: 0.25,
-        roughness: 0.35
+        color: 0xb6d8ff,
+        emissive: 0x081d2a,
+        emissiveIntensity: 0.8,
+        metalness: 0.45,
+        roughness: 0.28
     });
 
     const shipBody = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.62, 16), shipMat);
@@ -94,11 +116,11 @@ function createSpaceRunnerAssets() {
     shipBody.position.z = -0.05;
 
     const wingMat = new THREE.MeshStandardMaterial({
-        color: 0x2b5a72,
-        emissive: 0x081b26,
-        emissiveIntensity: 0.9,
-        metalness: 0.15,
-        roughness: 0.5
+        color: 0x2b4b5f,
+        emissive: 0x051018,
+        emissiveIntensity: 0.55,
+        metalness: 0.25,
+        roughness: 0.48
     });
 
     const wingGeo = new THREE.BoxGeometry(0.55, 0.05, 0.18);
@@ -116,7 +138,7 @@ function createSpaceRunnerAssets() {
     spaceShip.position.set(0, 0, 0);
     spaceGroup.add(spaceShip);
 
-    spaceShipLight = new THREE.PointLight(0x7fd6ff, 0.9, 6);
+    spaceShipLight = new THREE.PointLight(0x7fd6ff, 0.85, 7);
     spaceShipLight.position.set(0, 0.1, 0.6);
     spaceShip.add(spaceShipLight);
 
@@ -126,6 +148,7 @@ function createSpaceRunnerAssets() {
     starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
     const starMat = new THREE.PointsMaterial({
         size: 0.035,
+        map: sharedSpriteTexture || null,
         transparent: true,
         opacity: 0.85,
         blending: THREE.AdditiveBlending,
@@ -154,11 +177,11 @@ function createSpaceRunnerAssets() {
     spaceStars.geometry.attributes.color.needsUpdate = true;
 
     const asteroidMat = new THREE.MeshStandardMaterial({
-        color: 0x6f7780,
-        emissive: 0x060608,
-        emissiveIntensity: 0.35,
-        metalness: 0.1,
-        roughness: 0.95
+        color: 0x6b7179,
+        emissive: 0x020203,
+        emissiveIntensity: 0.18,
+        metalness: 0.02,
+        roughness: 0.98
     });
 
     for (let i = 0; i < SPACE.asteroidCount; i++) {
@@ -175,13 +198,13 @@ function createSpaceRunnerAssets() {
 
     for (let i = 0; i < SPACE.planetCount; i++) {
         const r = rand(0.85, 1.65);
-        const pc = new THREE.Color().setHSL(Math.random(), 0.55, 0.45);
+        const pc = new THREE.Color().setHSL(rand(0.0, 1.0), rand(0.35, 0.55), rand(0.36, 0.48));
         const planetMat = new THREE.MeshStandardMaterial({
             color: pc,
-            emissive: pc.clone().multiplyScalar(0.08),
-            emissiveIntensity: 0.9,
-            metalness: 0.05,
-            roughness: 0.65
+            emissive: pc.clone().multiplyScalar(0.02),
+            emissiveIntensity: 0.65,
+            metalness: 0.02,
+            roughness: 0.88
         });
         const m = new THREE.Mesh(new THREE.SphereGeometry(r, 26, 18), planetMat);
         m.userData.kind = 'planet';
@@ -192,6 +215,187 @@ function createSpaceRunnerAssets() {
         spaceGroup.add(m);
         spaceObstacles.push(m);
     }
+
+    const trailGeo = new THREE.BufferGeometry();
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_COUNT * 3), 3));
+    trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(TRAIL_COUNT * 3), 3));
+    const trailMat = new THREE.PointsMaterial({
+        size: 0.06,
+        map: sharedSpriteTexture || null,
+        transparent: true,
+        opacity: 0.95,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        vertexColors: true
+    });
+    spaceTrail = new THREE.Points(trailGeo, trailMat);
+    spaceTrail.renderOrder = 10;
+    spaceGroup.add(spaceTrail);
+    const tp = spaceTrail.geometry.attributes.position.array;
+    for (let i = 0; i < TRAIL_COUNT; i++) {
+        tp[i * 3] = 9999;
+        tp[i * 3 + 1] = 9999;
+        tp[i * 3 + 2] = 9999;
+    }
+    spaceTrail.geometry.attributes.position.needsUpdate = true;
+}
+
+function ensureGameAudio() {
+    if (gameAudio.ctx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+
+    const ctx = new Ctx();
+    const master = ctx.createGain();
+    master.gain.value = 0.35;
+    master.connect(ctx.destination);
+
+    const engineGain = ctx.createGain();
+    engineGain.gain.value = 0.0;
+    engineGain.connect(master);
+
+    const engineFilter = ctx.createBiquadFilter();
+    engineFilter.type = 'lowpass';
+    engineFilter.frequency.value = 900;
+    engineFilter.Q.value = 0.6;
+    engineFilter.connect(engineGain);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 70;
+    const oscGain = ctx.createGain();
+    oscGain.gain.value = 0.10;
+    osc.connect(oscGain);
+    oscGain.connect(engineFilter);
+    osc.start();
+
+    const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.0, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.6;
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    noise.loop = true;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.05;
+    noise.connect(noiseGain);
+    noiseGain.connect(engineFilter);
+    noise.start();
+
+    gameAudio = {
+        ctx,
+        master,
+        engineGain,
+        engineOsc: osc,
+        engineNoise: noise,
+        engineFilter,
+        enabled: true
+    };
+
+    const resume = async () => {
+        try { if (ctx.state !== 'running') await ctx.resume(); } catch {}
+    };
+    document.addEventListener('pointerdown', resume, { passive: true });
+    document.addEventListener('keydown', resume);
+}
+
+function setEngineSound(active, speed) {
+    if (!gameAudio.ctx || !gameAudio.enabled) return;
+    const ctx = gameAudio.ctx;
+    const t0 = ctx.currentTime;
+    const target = active ? 0.25 : 0.0;
+    gameAudio.engineGain.gain.cancelScheduledValues(t0);
+    gameAudio.engineGain.gain.setTargetAtTime(target, t0, 0.08);
+
+    if (gameAudio.engineOsc) {
+        const f = 70 + Math.min(340, speed * 7.5);
+        gameAudio.engineOsc.frequency.setTargetAtTime(f, t0, 0.07);
+    }
+    if (gameAudio.engineFilter) {
+        const cf = 650 + Math.min(1800, speed * 16);
+        gameAudio.engineFilter.frequency.setTargetAtTime(cf, t0, 0.08);
+    }
+}
+
+function playHitSound() {
+    if (!gameAudio.ctx || !gameAudio.enabled) return;
+    const ctx = gameAudio.ctx;
+    const t0 = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0, t0);
+    g.gain.linearRampToValueAtTime(0.35, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.20);
+    osc.frequency.setValueAtTime(220, t0);
+    osc.frequency.exponentialRampToValueAtTime(90, t0 + 0.20);
+    osc.connect(g);
+    g.connect(gameAudio.master);
+    osc.start(t0);
+    osc.stop(t0 + 0.22);
+
+    const nBuf = ctx.createBuffer(1, ctx.sampleRate * 0.25, ctx.sampleRate);
+    const d = nBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const n = ctx.createBufferSource();
+    n.buffer = nBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'highpass';
+    nf.frequency.value = 520;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0, t0);
+    ng.gain.linearRampToValueAtTime(0.25, t0 + 0.01);
+    ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
+    n.connect(nf);
+    nf.connect(ng);
+    ng.connect(gameAudio.master);
+    n.start(t0);
+    n.stop(t0 + 0.22);
+}
+
+function spawnExplosion(pos) {
+    if (!sharedSpriteTexture) return;
+    const count = 120;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    const mat = new THREE.PointsMaterial({
+        size: 0.09,
+        map: sharedSpriteTexture,
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        vertexColors: true
+    });
+    const pts = new THREE.Points(geo, mat);
+    pts.position.copy(pos);
+    pts.renderOrder = 20;
+    spaceGroup.add(pts);
+
+    const vel = new Float32Array(count * 3);
+    const p = pts.geometry.attributes.position.array;
+    const c = pts.geometry.attributes.color.array;
+    for (let i = 0; i < count; i++) {
+        p[i * 3] = 0;
+        p[i * 3 + 1] = 0;
+        p[i * 3 + 2] = 0;
+        const a = Math.random() * Math.PI * 2;
+        const u = Math.random() * 2 - 1;
+        const r = Math.sqrt(1 - u * u);
+        const s = rand(1.2, 4.0);
+        vel[i * 3] = Math.cos(a) * r * s;
+        vel[i * 3 + 1] = Math.sin(a) * r * s;
+        vel[i * 3 + 2] = u * s;
+        const col = new THREE.Color().setHSL(rand(0.03, 0.12), 1.0, rand(0.55, 0.75));
+        c[i * 3] = col.r;
+        c[i * 3 + 1] = col.g;
+        c[i * 3 + 2] = col.b;
+    }
+    pts.geometry.attributes.position.needsUpdate = true;
+    pts.geometry.attributes.color.needsUpdate = true;
+    spaceExplosions.push({ pts, vel, life: 0.65 });
+    playHitSound();
 }
 
 function resetSpaceObstacle(obj, z = null) {
@@ -208,6 +412,7 @@ function resetSpaceObstacle(obj, z = null) {
 }
 
 function startSpaceRunner() {
+    ensureGameAudio();
     spaceScore = 0;
     spaceHP = 3;
     spaceInvuln = 0;
@@ -235,6 +440,15 @@ function updateSpaceRunner(dt) {
     const status = document.getElementById('status');
     if (!status) return;
 
+    fpsSmoothed = fpsSmoothed * 0.92 + (1 / Math.max(1e-4, dt)) * 0.08;
+
+    const hudFps = document.getElementById('hudFps');
+    const hudScore = document.getElementById('hudScore');
+    const hudHp = document.getElementById('hudHp');
+    if (hudFps) hudFps.textContent = Math.round(fpsSmoothed).toString();
+    if (hudScore) hudScore.textContent = spaceScore.toString();
+    if (hudHp) hudHp.textContent = spaceHP.toString();
+
     const pinchNow = pinchDist < 0.06;
     const pinchPressed = pinchNow && !pinchDown;
     pinchDown = pinchNow;
@@ -246,9 +460,10 @@ function updateSpaceRunner(dt) {
     }
 
     const speed = SPACE.baseSpeed + Math.min(55, spaceScore * SPACE.speedRamp);
+    setEngineSound(spaceGameState === 'playing', speed);
 
     if (handPresent) {
-        spaceShipTargetX = clamp((handX - 0.5) * 2.0 * SPACE.boundsX, -SPACE.boundsX, SPACE.boundsX);
+        spaceShipTargetX = clamp((0.5 - handX) * 2.0 * SPACE.boundsX, -SPACE.boundsX, SPACE.boundsX);
         spaceShipTargetY = clamp(-(handY - 0.5) * 2.0 * SPACE.boundsY, -SPACE.boundsY, SPACE.boundsY);
     }
 
@@ -260,6 +475,35 @@ function updateSpaceRunner(dt) {
 
     spaceShip.rotation.z = -spaceShip.position.x * 0.12;
     spaceShip.rotation.x = spaceShip.position.y * 0.08;
+
+    if (spaceTrail) {
+        const tp = spaceTrail.geometry.attributes.position.array;
+        const tc = spaceTrail.geometry.attributes.color.array;
+        const idx = trailHead % TRAIL_COUNT;
+        const sx = spaceShip.position.x;
+        const sy = spaceShip.position.y;
+        const sz = spaceShip.position.z - 0.65;
+        tp[idx * 3] = sx + rand(-0.03, 0.03);
+        tp[idx * 3 + 1] = sy + rand(-0.03, 0.03);
+        tp[idx * 3 + 2] = sz;
+        const col = new THREE.Color().setHSL(0.56, 1.0, 0.60);
+        tc[idx * 3] = col.r;
+        tc[idx * 3 + 1] = col.g;
+        tc[idx * 3 + 2] = col.b;
+        trailHead++;
+
+        for (let i = 0; i < TRAIL_COUNT; i++) {
+            const f = i / (TRAIL_COUNT - 1);
+            const k = ((trailHead - i - 1) % TRAIL_COUNT + TRAIL_COUNT) % TRAIL_COUNT;
+            const a = (1.0 - f);
+            tc[k * 3] *= (0.92 + a * 0.04);
+            tc[k * 3 + 1] *= (0.92 + a * 0.04);
+            tc[k * 3 + 2] *= (0.92 + a * 0.04);
+        }
+        spaceTrail.geometry.attributes.position.needsUpdate = true;
+        spaceTrail.geometry.attributes.color.needsUpdate = true;
+        spaceTrail.material.size = 0.06 + Math.min(0.08, speed * 0.002);
+    }
 
     const starPos = spaceStars.geometry.attributes.position.array;
     for (let i = 0; i < SPACE.starsCount; i++) {
@@ -278,6 +522,10 @@ function updateSpaceRunner(dt) {
         spaceShipLight.intensity = 0.7 + blink * 1.3;
     } else {
         spaceShipLight.intensity = 0.95;
+    }
+
+    if (cameraShake > 0) {
+        cameraShake = Math.max(0, cameraShake - dt * 2.0);
     }
 
     let hitThisFrame = false;
@@ -307,9 +555,40 @@ function updateSpaceRunner(dt) {
                     hitThisFrame = true;
                     spaceHP -= 1;
                     spaceInvuln = 1.05;
+                    cameraShake = Math.min(1.0, cameraShake + 0.75);
+                    spawnExplosion(spaceShip.position.clone());
                     resetSpaceObstacle(o, rand(SPACE.zFar, SPACE.zNear) - 40);
                 }
             }
+        }
+    }
+
+    for (let i = spaceExplosions.length - 1; i >= 0; i--) {
+        const e = spaceExplosions[i];
+        e.life -= dt;
+        const p = e.pts.geometry.attributes.position.array;
+        const c = e.pts.geometry.attributes.color.array;
+        const fade = clamp(e.life / 0.65, 0, 1);
+        for (let j = 0; j < p.length / 3; j++) {
+            p[j * 3] += e.vel[j * 3] * dt;
+            p[j * 3 + 1] += e.vel[j * 3 + 1] * dt;
+            p[j * 3 + 2] += e.vel[j * 3 + 2] * dt;
+            e.vel[j * 3] *= 0.96;
+            e.vel[j * 3 + 1] *= 0.96;
+            e.vel[j * 3 + 2] *= 0.96;
+            c[j * 3] *= (0.90 + fade * 0.10);
+            c[j * 3 + 1] *= (0.90 + fade * 0.10);
+            c[j * 3 + 2] *= (0.90 + fade * 0.10);
+        }
+        e.pts.geometry.attributes.position.needsUpdate = true;
+        e.pts.geometry.attributes.color.needsUpdate = true;
+        e.pts.material.opacity = fade;
+        e.pts.material.size = 0.07 + (1.0 - fade) * 0.14;
+        if (e.life <= 0) {
+            spaceGroup.remove(e.pts);
+            e.pts.geometry.dispose();
+            e.pts.material.dispose();
+            spaceExplosions.splice(i, 1);
         }
     }
 
@@ -320,6 +599,7 @@ function updateSpaceRunner(dt) {
     if (spaceGameState === 'gameover') {
         status.innerHTML = `SPACE RUNNER: <span style='color:#ff4d4d'>GAME OVER</span><br>Score: ${spaceScore} — pinch to restart`;
         if (pinchPressed) startSpaceRunner();
+        setEngineSound(false, 0);
         return;
     }
 
@@ -456,6 +736,7 @@ function initThree() {
     ctx.fillStyle = grad; ctx.fillRect(0,0,64,64);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
+    sharedSpriteTexture = texture;
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PARTICLE_COUNT * 3), 3));
@@ -752,6 +1033,34 @@ function updateShape(type) {
     if (spaceGroup) spaceGroup.visible = isSpaceRunner;
     if (particleSystem) particleSystem.visible = !isSpaceRunner;
 
+    document.body.classList.toggle('game-mode', isSpaceRunner);
+
+    if (isSpaceRunner) {
+        if (!savedCameraState) {
+            savedCameraState = {
+                fov: camera.fov,
+                pos: camera.position.clone()
+            };
+        }
+        camera.fov = 72;
+        camera.position.set(0, 0, 4.2);
+        camera.updateProjectionMatrix();
+
+        if (savedFog === undefined) savedFog = scene.fog || null;
+        scene.fog = new THREE.Fog(0x000005, 10, 150);
+    } else {
+        if (savedCameraState) {
+            camera.fov = savedCameraState.fov;
+            camera.position.copy(savedCameraState.pos);
+            camera.updateProjectionMatrix();
+        }
+        if (savedFog !== undefined) {
+            scene.fog = savedFog;
+            savedFog = undefined;
+        }
+        setEngineSound(false, 0);
+    }
+
     const isBlackHole = type === 'blackhole';
     if (bgMesh) bgMesh.visible = false;
     if (blackHoleGroup) blackHoleGroup.visible = isBlackHole;
@@ -913,6 +1222,15 @@ function animate() {
     time = now;
 
     if (activePreset === 'spacerunner') {
+        if (cameraShake > 0) {
+            const ax = (Math.random() * 2 - 1) * cameraShake * 0.06;
+            const ay = (Math.random() * 2 - 1) * cameraShake * 0.05;
+            camera.position.x = ax;
+            camera.position.y = ay;
+        } else if (savedCameraState) {
+            camera.position.x = 0;
+            camera.position.y = 0;
+        }
         updateSpaceRunner(dt);
         renderer.render(scene, camera);
         return;
