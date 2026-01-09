@@ -87,6 +87,16 @@
 </div>
 
 <div id="video-container"><video id="webcam" autoplay playsinline></video></div>
+
+<div id="gameHud" aria-label="Game HUD" role="status">
+    <div class="hud-row">
+        <div class="hud-pill">FPS: <span id="hudFps">--</span></div>
+        <div class="hud-pill">SCORE: <span id="hudScore">0</span></div>
+        <div class="hud-pill">HP: <span id="hudHp">3</span></div>
+    </div>
+    <div class="hud-hint">Move hand to steer • Pinch to restart on Game Over</div>
+</div>
+
 <div id="container"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
