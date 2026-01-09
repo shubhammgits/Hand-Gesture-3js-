@@ -1,54 +1,30 @@
 let scene, camera, renderer, particleSystem;
 let bgMesh;
 let blackHoleGroup, blackHoleCore, blackHoleDisk, blackHoleHalo, blackHolePhotonRing;
-let blackHoleDiskMaterials, blackHolePhotonRingMaterials;
 let infallSystem;
 let bhStencilMask;
 let innerStarSystem;
 let activePreset = 'sun';
 let time = 0;
 let bhSpin = 0;
-let blackHoleLook = 'cinematic';
-
-const BLACK_HOLE_LOOKS = {
-    cinematic: {
-        diskIntensityBase: 0.9,
-        diskIntensityZoom: 0.35,
-        ringIntensityBase: 0.85,
-        ringIntensityZoom: 0.45,
-        haloOpacity: 1.0,
-        infallOutsideBoostBase: 0.25,
-        infallOutsideBoostZoom: 0.55,
-        infallOutsideSat: 1.0,
-        infallOutsideLightBase: 0.35,
-        infallOutsideLightBoost: 0.45,
-        infallInsideBoostBase: 0.35,
-        infallInsideBoostZoom: 0.65,
-        infallInsideSat: 1.0,
-        infallInsideLight: 0.55,
-        infallSizeBase: 0.02,
-        infallSizeZoom: 0.03,
-        innerStarsOpacityMax: 0.75
-    },
-    scientific: {
-        diskIntensityBase: 0.55,
-        diskIntensityZoom: 0.25,
-        ringIntensityBase: 0.40,
-        ringIntensityZoom: 0.25,
-        haloOpacity: 0.38,
-        infallOutsideBoostBase: 0.18,
-        infallOutsideBoostZoom: 0.35,
-        infallOutsideSat: 0.9,
-        infallOutsideLightBase: 0.28,
-        infallOutsideLightBoost: 0.35,
-        infallInsideBoostBase: 0.22,
-        infallInsideBoostZoom: 0.45,
-        infallInsideSat: 0.9,
-        infallInsideLight: 0.50,
-        infallSizeBase: 0.016,
-        infallSizeZoom: 0.02,
-        innerStarsOpacityMax: 0.45
-    }
+const BLACK_HOLE_CINEMATIC = {
+    diskIntensityBase: 0.9,
+    diskIntensityZoom: 0.35,
+    ringIntensityBase: 0.85,
+    ringIntensityZoom: 0.45,
+    haloOpacity: 1.0,
+    infallOutsideBoostBase: 0.25,
+    infallOutsideBoostZoom: 0.55,
+    infallOutsideSat: 1.0,
+    infallOutsideLightBase: 0.35,
+    infallOutsideLightBoost: 0.45,
+    infallInsideBoostBase: 0.35,
+    infallInsideBoostZoom: 0.65,
+    infallInsideSat: 1.0,
+    infallInsideLight: 0.55,
+    infallSizeBase: 0.02,
+    infallSizeZoom: 0.03,
+    innerStarsOpacityMax: 0.75
 };
 
 const INFALL_COUNT = 8000;
@@ -236,17 +212,6 @@ function createGlowTexture(innerColor, outerColor) {
     return tex;
 }
 
-function applyBlackHoleLook() {
-    if (blackHoleDisk && blackHoleDiskMaterials) {
-        const mat = blackHoleDiskMaterials[blackHoleLook] || blackHoleDiskMaterials.cinematic;
-        if (blackHoleDisk.material !== mat) blackHoleDisk.material = mat;
-    }
-    if (blackHolePhotonRing && blackHolePhotonRingMaterials) {
-        const mat = blackHolePhotonRingMaterials[blackHoleLook] || blackHolePhotonRingMaterials.cinematic;
-        if (blackHolePhotonRing.material !== mat) blackHolePhotonRing.material = mat;
-    }
-}
-
 function createAccretionDiskTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -363,10 +328,7 @@ function createBlackHoleAssets() {
 
     blackHolePhotonRing = new THREE.Mesh(
         new THREE.RingGeometry(0.88, 1.02, 128),
-        (blackHolePhotonRingMaterials = {
-            cinematic: createPhotonRingMaterial(0.88, 1.02, 'cinematic'),
-            scientific: createPhotonRingMaterial(0.88, 1.02, 'scientific')
-        }).cinematic
+        createPhotonRingMaterial(0.88, 1.02)
     );
     blackHolePhotonRing.renderOrder = 6;
     blackHoleGroup.add(blackHolePhotonRing);
@@ -381,10 +343,7 @@ function createBlackHoleAssets() {
 
     blackHoleDisk = new THREE.Mesh(
         new THREE.RingGeometry(1.05, 2.85, 128, 1),
-        (blackHoleDiskMaterials = {
-            cinematic: createAccretionDiskMaterial(1.05, 2.85, 'cinematic'),
-            scientific: createAccretionDiskMaterial(1.05, 2.85, 'scientific')
-        }).cinematic
+        createAccretionDiskMaterial(1.05, 2.85)
     );
     blackHoleDisk.rotation.x = 1.12;
     blackHoleDisk.renderOrder = 5;
@@ -645,23 +604,7 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-function createAccretionDiskMaterial(innerR, outerR, mode = 'cinematic') {
-    const isScientific = mode === 'scientific';
-    const uIntensityValue = isScientific ? 0.65 : 1.0;
-    const dopExpr = isScientific
-        ? '0.45 + 0.55 * pow(max(0.0, cos(ang - uHotAngle)), 3.0)'
-        : '0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0)';
-    const alphaExpr = isScientific
-        ? 'radial * (0.25 + fil * 0.45) * fadeOut * (0.55 + 0.45 * dop)'
-        : 'radial * dop * (0.55 + fil * 0.75) * fadeOut';
-    const colExpr = isScientific
-        ? 'mix(vec3(0.95, 0.82, 0.60), vec3(1.0, 0.95, 0.90), pow(heat, 1.1))'
-        : 'mix(vec3(1.0, 0.55, 0.18), vec3(1.0, 0.90, 0.70), pow(heat, 1.2))';
-    const colScaleExpr = isScientific
-        ? '(0.55 + dop * 0.35)'
-        : '(0.55 + dop * 0.8)';
-    const outAlpha = isScientific ? '0.55' : '0.9';
-
+function createAccretionDiskMaterial(innerR, outerR) {
     return new THREE.ShaderMaterial({
         transparent: true,
         blending: THREE.AdditiveBlending,
@@ -673,7 +616,7 @@ function createAccretionDiskMaterial(innerR, outerR, mode = 'cinematic') {
             uInner: { value: innerR },
             uOuter: { value: outerR },
             uHotAngle: { value: -0.45 },
-            uIntensity: { value: uIntensityValue }
+            uIntensity: { value: 1.0 }
         },
         vertexShader: `
             varying vec3 vPos;
@@ -730,7 +673,7 @@ function createAccretionDiskMaterial(innerR, outerR, mode = 'cinematic') {
                 float mid = 0.65 * exp(-pow((dr - 0.45)/0.28, 2.0));
                 float radial = innerHot + mid;
 
-                float dop = ${dopExpr};
+                float dop = 0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
 
                 float shear = (1.0 / (r + 0.25));
                 vec2 p = vec2(dr * 6.0, ang * 1.6) + vec2(uTime * 0.25, -uTime * 0.18) * shear;
@@ -738,37 +681,19 @@ function createAccretionDiskMaterial(innerR, outerR, mode = 'cinematic') {
                 float fil = smoothstep(0.15, 0.95, n);
 
                 float fadeOut = smoothstep(1.0, 0.85, dr);
-                float a = ${alphaExpr};
+                float a = radial * dop * (0.55 + fil * 0.75) * fadeOut;
 
                 float heat = clamp(1.0 - dr, 0.0, 1.0);
-                vec3 col = ${colExpr};
-                col *= ${colScaleExpr};
+                vec3 col = mix(vec3(1.0, 0.55, 0.18), vec3(1.0, 0.90, 0.70), pow(heat, 1.2));
+                col *= (0.55 + dop * 0.8);
 
-                gl_FragColor = vec4(col * uIntensity, a * ${outAlpha});
+                gl_FragColor = vec4(col * uIntensity, a * 0.9);
             }
         `
     });
 }
 
-function createPhotonRingMaterial(innerR, outerR, mode = 'cinematic') {
-    const isScientific = mode === 'scientific';
-    const uIntensityValue = isScientific ? 0.5 : 1.0;
-    const centerValue = isScientific ? 0.52 : 0.55;
-    const widthValue = isScientific ? 0.09 : 0.18;
-    const dopExpr = isScientific
-        ? '0.50 + 0.50 * pow(max(0.0, cos(ang - uHotAngle)), 3.0)'
-        : '0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0)';
-    const flickExpr = isScientific
-        ? '0.95 + 0.05 * sin(uTime * 1.5 + ang * 5.0)'
-        : '0.85 + 0.15 * sin(uTime * 2.2 + ang * 6.0)';
-    const colExpr = isScientific
-        ? 'mix(vec3(1.0, 0.92, 0.72), vec3(1.0, 1.0, 1.0), 0.25)'
-        : 'mix(vec3(1.0, 0.72, 0.25), vec3(1.0, 1.0, 1.0), 0.35)';
-    const alphaExpr = isScientific
-        ? 'band * (0.65 + 0.35 * dop) * flick'
-        : 'band * dop * flick';
-    const outAlpha = isScientific ? '0.55' : '0.85';
-
+function createPhotonRingMaterial(innerR, outerR) {
     return new THREE.ShaderMaterial({
         transparent: true,
         blending: THREE.AdditiveBlending,
@@ -780,7 +705,7 @@ function createPhotonRingMaterial(innerR, outerR, mode = 'cinematic') {
             uInner: { value: innerR },
             uOuter: { value: outerR },
             uHotAngle: { value: -0.45 },
-            uIntensity: { value: uIntensityValue }
+            uIntensity: { value: 1.0 }
         },
         vertexShader: `
             varying vec3 vPos;
@@ -804,14 +729,14 @@ function createPhotonRingMaterial(innerR, outerR, mode = 'cinematic') {
                 if(t < 0.0 || t > 1.0) discard;
 
                 float ang = atan(vPos.y, vPos.x);
-                float center = ${centerValue};
-                float band = exp(-pow((t - center) / ${widthValue}, 2.0));
-                float dop = ${dopExpr};
-                float flick = ${flickExpr};
+                float center = 0.55;
+                float band = exp(-pow((t - center) / 0.18, 2.0));
+                float dop = 0.35 + 0.65 * pow(max(0.0, cos(ang - uHotAngle)), 3.0);
+                float flick = 0.85 + 0.15 * sin(uTime * 2.2 + ang * 6.0);
 
-                vec3 col = ${colExpr};
-                float a = ${alphaExpr};
-                gl_FragColor = vec4(col * uIntensity, a * ${outAlpha});
+                vec3 col = mix(vec3(1.0, 0.72, 0.25), vec3(1.0, 1.0, 1.0), 0.35);
+                float a = band * dop * flick;
+                gl_FragColor = vec4(col * uIntensity, a * 0.85);
             }
         `
     });
@@ -820,8 +745,7 @@ function createPhotonRingMaterial(innerR, outerR, mode = 'cinematic') {
 function updateBlackHoleVisuals() {
     if (!blackHoleGroup || !infallSystem) return;
 
-    const look = BLACK_HOLE_LOOKS[blackHoleLook] || BLACK_HOLE_LOOKS.cinematic;
-    applyBlackHoleLook();
+    const look = BLACK_HOLE_CINEMATIC;
 
     blackHoleGroup.scale.copy(particleSystem.scale);
     blackHoleGroup.rotation.set(0, 0, particleSystem.rotation.z);
@@ -996,15 +920,6 @@ function updateBlackHoleVisuals() {
 }
 
 document.getElementById('shapeSelect').onchange = (e) => updateShape(e.target.value);
-
-const bhLookSelectEl = document.getElementById('bhLookSelect');
-if (bhLookSelectEl) {
-    blackHoleLook = bhLookSelectEl.value || blackHoleLook;
-    bhLookSelectEl.onchange = (e) => {
-        blackHoleLook = e.target.value || 'cinematic';
-        applyBlackHoleLook();
-    };
-}
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -1164,7 +1079,6 @@ function setupCustomSelect(selectId) {
 }
 
 setupCustomSelect('shapeSelect');
-setupCustomSelect('bhLookSelect');
 setupResponsiveUI();
 setupHelpPanel();
 setupIntroOverlay();
