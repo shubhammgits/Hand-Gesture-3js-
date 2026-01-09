@@ -27,6 +27,307 @@ const BLACK_HOLE_CINEMATIC = {
     innerStarsOpacityMax: 0.75
 };
 
+let handPresent = false;
+let handX = 0.5;
+let handY = 0.5;
+let pinchDist = 1.0;
+let pinchDown = false;
+
+let spaceGroup;
+let spaceShip;
+let spaceStars;
+let spaceShipLight;
+let spaceAmbient;
+let spaceDir;
+let spaceShipTargetX = 0;
+let spaceShipTargetY = 0;
+let spaceScore = 0;
+let spaceHP = 3;
+let spaceInvuln = 0;
+let spaceGameState = 'idle';
+let lastFrameT = 0;
+
+const SPACE = {
+    boundsX: 3.3,
+    boundsY: 2.0,
+    shipRadius: 0.28,
+    starsCount: 1200,
+    asteroidCount: 22,
+    planetCount: 6,
+    zFar: -140,
+    zNear: -40,
+    baseSpeed: 16,
+    speedRamp: 0.9
+};
+
+const spaceObstacles = [];
+
+function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+}
+
+function rand(a, b) {
+    return a + Math.random() * (b - a);
+}
+
+function createSpaceRunnerAssets() {
+    spaceGroup = new THREE.Group();
+    spaceGroup.visible = false;
+    scene.add(spaceGroup);
+
+    spaceAmbient = new THREE.AmbientLight(0xffffff, 0.25);
+    spaceGroup.add(spaceAmbient);
+    spaceDir = new THREE.DirectionalLight(0xffffff, 0.85);
+    spaceDir.position.set(3, 4, 6);
+    spaceGroup.add(spaceDir);
+
+    const shipMat = new THREE.MeshStandardMaterial({
+        color: 0x8ad7ff,
+        emissive: 0x0f3a55,
+        emissiveIntensity: 1.2,
+        metalness: 0.25,
+        roughness: 0.35
+    });
+
+    const shipBody = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.62, 16), shipMat);
+    shipBody.rotation.x = -Math.PI / 2;
+    shipBody.position.z = -0.05;
+
+    const wingMat = new THREE.MeshStandardMaterial({
+        color: 0x2b5a72,
+        emissive: 0x081b26,
+        emissiveIntensity: 0.9,
+        metalness: 0.15,
+        roughness: 0.5
+    });
+
+    const wingGeo = new THREE.BoxGeometry(0.55, 0.05, 0.18);
+    const wing = new THREE.Mesh(wingGeo, wingMat);
+    wing.position.set(0, -0.02, 0.05);
+
+    const finGeo = new THREE.BoxGeometry(0.06, 0.22, 0.18);
+    const fin = new THREE.Mesh(finGeo, wingMat);
+    fin.position.set(0, 0.12, 0.05);
+
+    spaceShip = new THREE.Group();
+    spaceShip.add(shipBody);
+    spaceShip.add(wing);
+    spaceShip.add(fin);
+    spaceShip.position.set(0, 0, 0);
+    spaceGroup.add(spaceShip);
+
+    spaceShipLight = new THREE.PointLight(0x7fd6ff, 0.9, 6);
+    spaceShipLight.position.set(0, 0.1, 0.6);
+    spaceShip.add(spaceShipLight);
+
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SPACE.starsCount * 3), 3));
+    const starCol = new Float32Array(SPACE.starsCount * 3);
+    starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
+    const starMat = new THREE.PointsMaterial({
+        size: 0.035,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        vertexColors: true
+    });
+    spaceStars = new THREE.Points(starGeo, starMat);
+    spaceGroup.add(spaceStars);
+
+    const starPos = spaceStars.geometry.attributes.position.array;
+    for (let i = 0; i < SPACE.starsCount; i++) {
+        starPos[i * 3] = rand(-12, 12);
+        starPos[i * 3 + 1] = rand(-7, 7);
+        starPos[i * 3 + 2] = rand(-220, 5);
+
+        const t = Math.random();
+        const c = new THREE.Color();
+        if (t < 0.78) c.setRGB(1, 1, 1);
+        else if (t < 0.92) c.setRGB(0.70, 0.85, 1.0);
+        else c.setRGB(1.0, 0.78, 0.55);
+        starCol[i * 3] = c.r;
+        starCol[i * 3 + 1] = c.g;
+        starCol[i * 3 + 2] = c.b;
+    }
+    spaceStars.geometry.attributes.position.needsUpdate = true;
+    spaceStars.geometry.attributes.color.needsUpdate = true;
+
+    const asteroidMat = new THREE.MeshStandardMaterial({
+        color: 0x6f7780,
+        emissive: 0x060608,
+        emissiveIntensity: 0.35,
+        metalness: 0.1,
+        roughness: 0.95
+    });
+
+    for (let i = 0; i < SPACE.asteroidCount; i++) {
+        const r = rand(0.18, 0.46);
+        const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), asteroidMat);
+        m.userData.kind = 'asteroid';
+        m.userData.radius = r;
+        m.userData.speed = rand(0.95, 1.55);
+        m.userData.spin = rand(-1.8, 1.8);
+        m.userData.tilt = rand(-1.0, 1.0);
+        spaceGroup.add(m);
+        spaceObstacles.push(m);
+    }
+
+    for (let i = 0; i < SPACE.planetCount; i++) {
+        const r = rand(0.85, 1.65);
+        const pc = new THREE.Color().setHSL(Math.random(), 0.55, 0.45);
+        const planetMat = new THREE.MeshStandardMaterial({
+            color: pc,
+            emissive: pc.clone().multiplyScalar(0.08),
+            emissiveIntensity: 0.9,
+            metalness: 0.05,
+            roughness: 0.65
+        });
+        const m = new THREE.Mesh(new THREE.SphereGeometry(r, 26, 18), planetMat);
+        m.userData.kind = 'planet';
+        m.userData.radius = r;
+        m.userData.speed = rand(0.55, 0.95);
+        m.userData.spin = rand(-0.6, 0.6);
+        m.userData.tilt = rand(-0.7, 0.7);
+        spaceGroup.add(m);
+        spaceObstacles.push(m);
+    }
+}
+
+function resetSpaceObstacle(obj, z = null) {
+    const r = obj.userData.radius || 0.4;
+    const zx = z ?? rand(SPACE.zFar, SPACE.zNear);
+    obj.position.set(
+        rand(-SPACE.boundsX, SPACE.boundsX),
+        rand(-SPACE.boundsY, SPACE.boundsY),
+        zx
+    );
+    obj.rotation.set(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
+    obj.userData.driftX = rand(-0.35, 0.35) * (0.25 / Math.max(0.1, r));
+    obj.userData.driftY = rand(-0.22, 0.22) * (0.25 / Math.max(0.1, r));
+}
+
+function startSpaceRunner() {
+    spaceScore = 0;
+    spaceHP = 3;
+    spaceInvuln = 0;
+    spaceGameState = 'playing';
+    spaceShip.position.set(0, 0, 0);
+    spaceShipTargetX = 0;
+    spaceShipTargetY = 0;
+
+    const starPos = spaceStars.geometry.attributes.position.array;
+    for (let i = 0; i < SPACE.starsCount; i++) {
+        starPos[i * 3] = rand(-12, 12);
+        starPos[i * 3 + 1] = rand(-7, 7);
+        starPos[i * 3 + 2] = rand(-220, 5);
+    }
+    spaceStars.geometry.attributes.position.needsUpdate = true;
+
+    for (let i = 0; i < spaceObstacles.length; i++) {
+        resetSpaceObstacle(spaceObstacles[i], rand(SPACE.zFar, SPACE.zNear) - i * 4.0);
+    }
+}
+
+function updateSpaceRunner(dt) {
+    if (!spaceGroup || !spaceGroup.visible) return;
+
+    const status = document.getElementById('status');
+    if (!status) return;
+
+    const pinchNow = pinchDist < 0.06;
+    const pinchPressed = pinchNow && !pinchDown;
+    pinchDown = pinchNow;
+
+    if (spaceGameState !== 'playing') {
+        status.innerHTML = "SPACE RUNNER: <span style='color:#88cfff'>READY</span><br>Pinch to start";
+        if (pinchPressed) startSpaceRunner();
+        return;
+    }
+
+    const speed = SPACE.baseSpeed + Math.min(55, spaceScore * SPACE.speedRamp);
+
+    if (handPresent) {
+        spaceShipTargetX = clamp((handX - 0.5) * 2.0 * SPACE.boundsX, -SPACE.boundsX, SPACE.boundsX);
+        spaceShipTargetY = clamp(-(handY - 0.5) * 2.0 * SPACE.boundsY, -SPACE.boundsY, SPACE.boundsY);
+    }
+
+    spaceShip.position.x += (spaceShipTargetX - spaceShip.position.x) * (1.0 - Math.pow(0.0001, dt));
+    spaceShip.position.y += (spaceShipTargetY - spaceShip.position.y) * (1.0 - Math.pow(0.0001, dt));
+
+    spaceShip.position.x = clamp(spaceShip.position.x, -SPACE.boundsX, SPACE.boundsX);
+    spaceShip.position.y = clamp(spaceShip.position.y, -SPACE.boundsY, SPACE.boundsY);
+
+    spaceShip.rotation.z = -spaceShip.position.x * 0.12;
+    spaceShip.rotation.x = spaceShip.position.y * 0.08;
+
+    const starPos = spaceStars.geometry.attributes.position.array;
+    for (let i = 0; i < SPACE.starsCount; i++) {
+        starPos[i * 3 + 2] += dt * (speed * 1.9);
+        if (starPos[i * 3 + 2] > camera.position.z + 1.5) {
+            starPos[i * 3] = rand(-12, 12);
+            starPos[i * 3 + 1] = rand(-7, 7);
+            starPos[i * 3 + 2] = rand(-220, -140);
+        }
+    }
+    spaceStars.geometry.attributes.position.needsUpdate = true;
+
+    if (spaceInvuln > 0) {
+        spaceInvuln = Math.max(0, spaceInvuln - dt);
+        const blink = (Math.sin(time * 22.0) * 0.5 + 0.5);
+        spaceShipLight.intensity = 0.7 + blink * 1.3;
+    } else {
+        spaceShipLight.intensity = 0.95;
+    }
+
+    let hitThisFrame = false;
+    for (let i = 0; i < spaceObstacles.length; i++) {
+        const o = spaceObstacles[i];
+        const zMove = dt * speed * (o.userData.speed || 1.0);
+        o.position.z += zMove;
+        o.position.x += (o.userData.driftX || 0) * dt;
+        o.position.y += (o.userData.driftY || 0) * dt;
+        o.rotation.x += dt * (o.userData.spin || 0.6);
+        o.rotation.y += dt * (o.userData.spin || 0.6) * 0.7;
+
+        if (o.position.z > camera.position.z + 2.0) {
+            resetSpaceObstacle(o);
+            spaceScore += (o.userData.kind === 'planet') ? 2 : 1;
+            continue;
+        }
+
+        if (spaceInvuln <= 0 && !hitThisFrame) {
+            const dz = Math.abs(o.position.z - spaceShip.position.z);
+            if (dz < 0.9 + (o.userData.radius || 0.4)) {
+                const dx = o.position.x - spaceShip.position.x;
+                const dy = o.position.y - spaceShip.position.y;
+                const d = Math.hypot(dx, dy, o.position.z - spaceShip.position.z);
+                const rr = SPACE.shipRadius + (o.userData.radius || 0.4);
+                if (d < rr) {
+                    hitThisFrame = true;
+                    spaceHP -= 1;
+                    spaceInvuln = 1.05;
+                    resetSpaceObstacle(o, rand(SPACE.zFar, SPACE.zNear) - 40);
+                }
+            }
+        }
+    }
+
+    if (hitThisFrame && spaceHP <= 0) {
+        spaceGameState = 'gameover';
+    }
+
+    if (spaceGameState === 'gameover') {
+        status.innerHTML = `SPACE RUNNER: <span style='color:#ff4d4d'>GAME OVER</span><br>Score: ${spaceScore} — pinch to restart`;
+        if (pinchPressed) startSpaceRunner();
+        return;
+    }
+
+    const hpColor = spaceHP >= 3 ? '#00ff88' : (spaceHP === 2 ? '#ffd166' : '#ff4d4d');
+    const handText = handPresent ? 'HAND: TRACKING' : 'HAND: LOST';
+    status.innerHTML = `SPACE RUNNER — Score: ${spaceScore} — HP: <span style='color:${hpColor}'>${spaceHP}</span><br>${handText}`;
+}
+
 const INFALL_COUNT = 8000;
 let infallR;
 let infallA;
@@ -169,8 +470,10 @@ function initThree() {
     scene.add(particleSystem);
 
     createBlackHoleAssets();
+    createSpaceRunnerAssets();
 
     updateShape('sun');
+    lastFrameT = performance.now() * 0.001;
     animate();
 }
 
@@ -445,12 +748,22 @@ function resetInfallParticle(i, init = false) {
 function updateShape(type) {
     activePreset = type;
 
+    const isSpaceRunner = type === 'spacerunner';
+    if (spaceGroup) spaceGroup.visible = isSpaceRunner;
+    if (particleSystem) particleSystem.visible = !isSpaceRunner;
+
     const isBlackHole = type === 'blackhole';
     if (bgMesh) bgMesh.visible = false;
     if (blackHoleGroup) blackHoleGroup.visible = isBlackHole;
     if (infallSystem) infallSystem.visible = isBlackHole;
     if (bhStencilMask) bhStencilMask.visible = isBlackHole;
     if (innerStarSystem) innerStarSystem.visible = isBlackHole;
+
+    if (isSpaceRunner) {
+        pinchDown = false;
+        startSpaceRunner();
+        return;
+    }
 
     if (particleSystem && particleSystem.material) {
         particleSystem.material.size = isBlackHole ? 0.035 : 0.05;
@@ -559,17 +872,29 @@ hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0
 hands.onResults((res) => {
     const status = document.getElementById('status');
     if (res.multiHandLandmarks && res.multiHandLandmarks.length > 0) {
-        status.innerHTML = "SYSTEM: <span style='color:#00ff00'>STABLE</span>";
+        if (status && activePreset !== 'spacerunner') {
+            status.innerHTML = "SYSTEM: <span style='color:#00ff00'>STABLE</span>";
+        }
         const lm = res.multiHandLandmarks[0];
 
-        const dist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-        targetScale = THREE.MathUtils.mapLinear(dist, 0.05, 0.4, 0.3, 6.0);
+        handPresent = true;
+        handX = (lm[0].x + lm[5].x + lm[17].x) / 3;
+        handY = (lm[0].y + lm[5].y + lm[17].y) / 3;
+        pinchDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
 
-        const dx = lm[9].x - lm[0].x;
-        const dy = lm[9].y - lm[0].y;
-        targetRotationZ = Math.atan2(dy, dx) + Math.PI / 2;
+        if (activePreset !== 'spacerunner') {
+            targetScale = THREE.MathUtils.mapLinear(pinchDist, 0.05, 0.4, 0.3, 6.0);
+
+            const dx = lm[9].x - lm[0].x;
+            const dy = lm[9].y - lm[0].y;
+            targetRotationZ = Math.atan2(dy, dx) + Math.PI / 2;
+        }
     } else {
-        status.innerHTML = "SYSTEM: <span style='color:#ff0000'>SEARCHING...</span>";
+        handPresent = false;
+        pinchDist = 1.0;
+        if (status && activePreset !== 'spacerunner') {
+            status.innerHTML = "SYSTEM: <span style='color:#ff0000'>SEARCHING...</span>";
+        }
     }
 });
 
@@ -582,7 +907,16 @@ cameraUtils.start();
 function animate() {
     requestAnimationFrame(animate);
 
-    time = performance.now() * 0.001;
+    const now = performance.now() * 0.001;
+    const dt = Math.min(0.05, Math.max(0.0, now - lastFrameT));
+    lastFrameT = now;
+    time = now;
+
+    if (activePreset === 'spacerunner') {
+        updateSpaceRunner(dt);
+        renderer.render(scene, camera);
+        return;
+    }
     
     currentScale += (targetScale - currentScale) * 0.1;
     currentRotationZ += (targetRotationZ - currentRotationZ) * 0.1;
